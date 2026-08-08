@@ -1,0 +1,632 @@
+/* ============================================
+   RESET Y BASE - PALETA PIVX
+============================================ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Lucida Console', 'Courier New', monospace;
+    background: #0d0f1a;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.container {
+    max-width: 500px;
+    width: 100%;
+    background: #151928;
+    border-radius: 16px;
+    padding: 35px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    border: 1px solid #2a2f4a;
+}
+
+/* ============================================
+   HEADER
+============================================ */
+header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.logo {
+    font-size: 50px;
+    margin-bottom: 10px;
+}
+
+h1 {
+    color: #e8eaf0;
+    font-size: 24px;
+    margin-bottom: 5px;
+    font-weight: 700;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+.subtitle {
+    color: #8892a8;
+    font-size: 14px;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+.fecha-actualizada {
+    color: #4a5270;
+    font-size: 12px;
+    margin-top: 5px;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+/* ============================================
+   CONSULTA
+============================================ */
+.consulta-section {
+    margin-bottom: 20px;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+label {
+    font-weight: 600;
+    color: #a8b2d4;
+    font-size: 14px;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+input {
+    padding: 14px 18px;
+    border: 2px solid #2a2f4a;
+    border-radius: 12px;
+    font-size: 18px;
+    transition: all 0.3s;
+    outline: none;
+    text-align: center;
+    letter-spacing: 2px;
+    background: #1a1f33;
+    color: #e8eaf0;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+input::placeholder {
+    color: #4a5270;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+input:focus {
+    border-color: #7b61ff;
+    box-shadow: 0 0 0 3px rgba(123, 97, 255, 0.2);
+    background: #1f253d;
+}
+
+button {
+    padding: 14px 20px;
+    background: linear-gradient(135deg, #7b61ff 0%, #5a3fd4 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(123, 97, 255, 0.3);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+.loading {
+    text-align: center;
+    padding: 15px;
+    color: #7b61ff;
+    font-weight: 500;
+    display: none;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+/* ============================================
+   BOTON DE AYUDA
+============================================ */
+.help-button {
+    margin-top: 10px;
+    background: transparent;
+    border: 1px solid #4a5270;
+    color: #8892a8;
+    padding: 10px;
+    font-size: 14px;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+    cursor: pointer;
+    transition: all 0.3s;
+    border-radius: 12px;
+    width: 100%;
+}
+
+.help-button:hover {
+    border-color: #7b61ff;
+    color: #e8eaf0;
+    background: rgba(123, 97, 255, 0.1);
+}
+
+/* ============================================
+   PANEL DE AYUDA
+============================================ */
+.help-panel {
+    display: none;
+    margin-top: 15px;
+    padding: 20px;
+    background: #1a1f33;
+    border-radius: 12px;
+    border: 1px solid #2a2f4a;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.help-panel.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+.help-panel::-webkit-scrollbar {
+    width: 6px;
+}
+
+.help-panel::-webkit-scrollbar-track {
+    background: #151928;
+    border-radius: 3px;
+}
+
+.help-panel::-webkit-scrollbar-thumb {
+    background: #4a5270;
+    border-radius: 3px;
+}
+
+.help-panel::-webkit-scrollbar-thumb:hover {
+    background: #7b61ff;
+}
+
+.help-item {
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #2a2f4a;
+}
+
+.help-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.help-question {
+    color: #7b61ff;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 5px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.help-question:hover {
+    color: #9b81ff;
+}
+
+.help-question .arrow {
+    transition: transform 0.3s;
+    font-size: 12px;
+}
+
+.help-question .arrow.open {
+    transform: rotate(180deg);
+}
+
+.help-answer {
+    color: #8892a8;
+    font-size: 13px;
+    line-height: 1.6;
+    display: none;
+    padding: 8px 0 0 10px;
+    border-left: 2px solid #2a2f4a;
+}
+
+.help-answer.open {
+    display: block;
+}
+
+.help-answer code {
+    background: #0d0f1a;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #7b61ff;
+    font-size: 12px;
+}
+
+.help-close {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin-top: 15px;
+    background: #2a2f4a;
+    color: #8892a8;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.help-close:hover {
+    background: #3a3f5a;
+    color: #e8eaf0;
+}
+
+/* ============================================
+   RESULTADO
+============================================ */
+.resultado {
+    margin-top: 20px;
+    padding: 20px;
+    background: #1a1f33;
+    border-radius: 12px;
+    border: 1px solid #2a2f4a;
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.deudor {
+    font-size: 18px;
+    font-weight: 700;
+    color: #e8eaf0;
+    margin-bottom: 5px;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+.dni {
+    color: #8892a8;
+    font-size: 14px;
+    margin-bottom: 15px;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+.deuda-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #2a2f4a;
+}
+
+.deuda-item:last-child {
+    border-bottom: none;
+}
+
+.entidad {
+    font-weight: 500;
+    color: #a8b2d4;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+.monto {
+    font-weight: 600;
+    color: #7b61ff;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+.total {
+    text-align: center;
+    padding: 15px 0 10px 0;
+    font-size: 22px;
+    font-weight: 700;
+    color: #e8eaf0;
+    border-top: 2px dashed #2a2f4a;
+    margin-top: 10px;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+.total span {
+    color: #7b61ff;
+}
+
+/* ============================================
+   BOTONES DE PAGO
+============================================ */
+.botones-pago {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.btn-pago {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-decoration: none;
+    color: white;
+    width: 100%;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+.btn-pago:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+}
+
+.btn-mp {
+    background: linear-gradient(135deg, #f50057, #c51162);
+}
+
+.btn-mp:hover {
+    box-shadow: 0 5px 20px rgba(245, 0, 87, 0.4);
+}
+
+.btn-transferencia {
+    background: linear-gradient(135deg, #2056FD, #4845FD);
+}
+
+.btn-transferencia:hover {
+    box-shadow: 0 5px 20px rgba(32, 86, 253, 0.4);
+}
+
+.btn-reportar {
+    background: linear-gradient(135deg, #00b894, #00856a);
+}
+
+.btn-reportar:hover {
+    box-shadow: 0 5px 20px rgba(0, 184, 148, 0.4);
+}
+
+.btn-cancelar {
+    background: #2a2f4a;
+    color: #8892a8;
+}
+
+.btn-cancelar:hover {
+    background: #3a3f5a;
+    transform: translateY(-2px);
+}
+
+.btn-cancelar-pago {
+    background: #2a2f4a;
+    color: #8892a8;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+.btn-cancelar-pago:hover {
+    background: #3a3f5a;
+    transform: translateY(-2px);
+}
+
+/* ============================================
+   NO ENCONTRADO
+============================================ */
+.no-encontrado {
+    text-align: center;
+    padding: 20px 0;
+}
+
+.no-encontrado .icono {
+    font-size: 48px;
+    margin-bottom: 10px;
+}
+
+.no-encontrado .mensaje {
+    color: #e8eaf0;
+    font-size: 18px;
+    font-weight: 600;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+.no-encontrado .detalle {
+    color: #8892a8;
+    font-size: 14px;
+    margin-top: 5px;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+/* ============================================
+   DATOS DE PAGO
+============================================ */
+.datos-pago {
+    background: #1f253d;
+    padding: 15px;
+    border-radius: 10px;
+    margin: 15px 0;
+    border: 1px solid #2a2f4a;
+}
+
+.datos-pago p {
+    margin: 8px 0;
+    font-size: 14px;
+    color: #a8b2d4;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+.datos-pago code {
+    background: #151928;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #7b61ff;
+    border: 1px solid #2a2f4a;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+.monto-exacto {
+    text-align: center;
+    font-size: 20px;
+    font-weight: bold;
+    color: #7b61ff;
+    margin: 15px 0;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+/* ============================================
+   FORMULARIO DE REPORTE
+============================================ */
+.form-group {
+    margin: 15px 0;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 5px;
+    color: #a8b2d4;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #2a2f4a;
+    border-radius: 8px;
+    font-size: 14px;
+    text-align: left;
+    letter-spacing: normal;
+    background: #1a1f33;
+    color: #e8eaf0;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+.form-group input:read-only {
+    background: #151928;
+    color: #8892a8;
+}
+
+.form-group input[type="file"] {
+    padding: 10px;
+    border: 2px dashed #2a2f4a;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: center;
+    color: #8892a8;
+}
+
+.form-group input[type="file"]:hover {
+    border-color: #7b61ff;
+}
+
+.form-group small {
+    color: #4a5270;
+    font-size: 12px;
+    display: block;
+    margin-top: 4px;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+.preview-image {
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 8px;
+    margin-top: 10px;
+    display: none;
+    border: 1px solid #2a2f4a;
+}
+
+/* ============================================
+   ERROR Y ESTADOS
+============================================ */
+.error-carga {
+    background: #2a1a1a;
+    color: #fc8181;
+    padding: 15px;
+    border-radius: 10px;
+    text-align: center;
+    display: none;
+    border: 1px solid #5a2a2a;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+.envio-status {
+    text-align: center;
+    margin-top: 10px;
+    display: none;
+    font-weight: 600;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+/* ============================================
+   FOOTER
+============================================ */
+footer {
+    margin-top: 30px;
+    text-align: center;
+    color: #4a5270;
+    font-size: 12px;
+    font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+footer p {
+    margin: 3px 0;
+}
+
+.footer-small {
+    font-size: 11px;
+}
+
+/* ============================================
+   RESPONSIVE
+============================================ */
+@media (max-width: 480px) {
+    .container {
+        padding: 20px;
+    }
+
+    h1 {
+        font-size: 20px;
+    }
+
+    input {
+        font-size: 16px;
+        padding: 12px;
+    }
+
+    button {
+        font-size: 16px;
+        padding: 12px;
+    }
+
+    .datos-pago code {
+        font-size: 12px;
+    }
+
+    .help-panel {
+        max-height: 300px;
+    }
+}

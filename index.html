@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autogestion FYD ONLINE</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <div class="logo">🤖</div>
+            <h1>Autogestion FYD ONLINE</h1>
+            <p class="subtitle">Consulta y resolve tus deudas en minutos</p>
+            <p class="fecha-actualizada">📅 Datos actualizados: <span id="fechaActual"></span></p>
+        </header>
+
+        <section class="consulta-section">
+            <div class="input-group">
+                <label for="dniInput">📌 Ingresa tu DNI</label>
+                <input type="text" id="dniInput" placeholder="Ej: 12345678" maxlength="8" autocomplete="off">
+                <button id="btnConsultar" onclick="consultar()">🔍 Consultar</button>
+            </div>
+            <div id="loading" class="loading">⏳ Buscando deudas...</div>
+
+            <button class="help-button" onclick="toggleHelp()">❓ Ayuda / Preguntas frecuentes</button>
+
+            <div id="helpPanel" class="help-panel">
+                <div class="help-item">
+                    <div class="help-question" onclick="toggleAnswer(this)">
+                        ¿Como se si tengo deudas?
+                        <span class="arrow">▼</span>
+                    </div>
+                    <div class="help-answer">
+                        Ingresa tu DNI en el campo de arriba y presiona <code>Consultar</code>. El sistema buscara automaticamente si tenes deudas registradas en nuestra base de datos.
+                    </div>
+                </div>
+
+                <div class="help-item">
+                    <div class="help-question" onclick="toggleAnswer(this)">
+                        ¿Que hago si tengo una deuda?
+                        <span class="arrow">▼</span>
+                    </div>
+                    <div class="help-answer">
+                        Si tenes deudas, vas a ver el detalle de cada una y el monto total. Luego podes elegir entre <code>Mercado Pago</code> o <code>Transferencia</code> para realizar el pago.
+                    </div>
+                </div>
+
+                <div class="help-item">
+                    <div class="help-question" onclick="toggleAnswer(this)">
+                        ¿Como reporto que ya pague?
+                        <span class="arrow">▼</span>
+                    </div>
+                    <div class="help-answer">
+                        Despues de realizar el pago, presiona el boton <code>📢 ¿Ya pagaste? Reporta tu pago</code>. Completa el formulario con tus datos y el comprobante. El administrador lo verificara y te confirmara.
+                    </div>
+                </div>
+
+                <div class="help-item">
+                    <div class="help-question" onclick="toggleAnswer(this)">
+                        ¿Que datos necesito para reportar?
+                        <span class="arrow">▼</span>
+                    </div>
+                    <div class="help-answer">
+                        Necesitas:<br>
+                        • DNI (se completa automaticamente)<br>
+                        • Nombre completo<br>
+                        • Monto que pagaste<br>
+                        • WhatsApp (para que te contactemos)<br>
+                        • Comprobante de pago (opcional, pero recomendado)
+                    </div>
+                </div>
+
+                <div class="help-item">
+                    <div class="help-question" onclick="toggleAnswer(this)">
+                        ¿Cuanto tarda la verificacion?
+                        <span class="arrow">▼</span>
+                    </div>
+                    <div class="help-answer">
+                        El administrador verifica los pagos a la brevedad. Una vez verificado, recibiras la confirmacion. El tiempo puede variar segun la disponibilidad del equipo.
+                    </div>
+                </div>
+
+                <div class="help-item">
+                    <div class="help-question" onclick="toggleAnswer(this)">
+                        ¿Que pasa si no encuentro mi deuda?
+                        <span class="arrow">▼</span>
+                    </div>
+                    <div class="help-answer">
+                        Si no encontras tu deuda, puede que:<br>
+                        • No tengas deudas registradas<br>
+                        • El DNI ingresado sea incorrecto<br>
+                        • La base de datos no este actualizada<br>
+                        En cualquier caso, podes contactar a soporte para mas informacion.
+                    </div>
+                </div>
+
+                <div class="help-item">
+                    <div class="help-question" onclick="toggleAnswer(this)">
+                        ¿Es seguro ingresar mi DNI?
+                        <span class="arrow">▼</span>
+                    </div>
+                    <div class="help-answer">
+                        Si. Solo usamos tu DNI para consultar tu situacion en nuestra base de datos. No almacenamos informacion personal ni compartimos tus datos con terceros.
+                    </div>
+                </div>
+
+                <button class="help-close" onclick="toggleHelp()">Cerrar ayuda</button>
+            </div>
+        </section>
+
+        <div id="errorCarga" class="error-carga">
+            ❌ No se pudo cargar el archivo de deudas.<br>
+            Verifica que el archivo <b>deudas.csv</b> este en el mismo directorio.
+        </div>
+
+        <div id="resultado" class="resultado"></div>
+
+        <footer>
+            <p>© 2026 FYD ONLINE - Todos los derechos reservados</p>
+            <p class="footer-small">🔒 Datos seguros - Procesamos pagos online</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
