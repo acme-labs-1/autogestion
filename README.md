@@ -1,6 +1,6 @@
-# 🤖 Deuda Bot — Sistema de Consulta, Reporte y Verificación de Pagos
+# 🤖 Deuda Bot — Sistema de Gestión y Verificación de Pagos
 
-Sistema web + backend para **consulta de deudas, reporte de pagos y verificación administrativa mediante Telegram**.
+Sistema web + backend para **consulta de deudas, desglose por código de pago, reporte de pagos y verificación administrativa mediante Telegram**.
 
 La arquitectura separa la operación pública de la administración interna:
 
@@ -122,26 +122,48 @@ autogest_back.php
 
 # 🔎 1. Consulta de deuda
 
-La consulta se realiza **directamente desde el navegador**, sin necesidad de consultar el backend.
-
-El frontend descarga:
-
-```text
-deudas.csv
-```
-
-y lo procesa mediante JavaScript.
+La consulta se realiza directamente desde el frontend, sin necesidad de consultar el backend.
 
 ## Proceso
 
-1. Carga `deudas.csv`.
-2. Convierte el CSV a objetos JavaScript.
-3. Valida el DNI ingresado.
-4. Busca coincidencias exactas por DNI.
-5. Agrupa las deudas por cartera.
-6. Convierte los importes a números.
-7. Calcula la deuda total.
-8. Muestra los métodos de pago disponibles.
+```text
+Usuario
+   │
+   │ Ingresa DNI
+   ▼
+GitHub Pages
+   │
+   │ HTTP GET
+   ▼
+deudas.csv
+   │
+   │ JavaScript
+   ▼
+Filtrado por DNI
+   │
+   ▼
+Agrupación por Código de Pago
+   │
+   ├── Código A → detalle + subtotal
+   ├── Código B → detalle + subtotal
+   └── Código C → detalle + subtotal
+   │
+   ▼
+Total general
+```
+
+El frontend descarga `deudas.csv`, lo convierte a objetos JavaScript y busca coincidencias exactas por DNI.
+
+Después de encontrar los registros, la información se organiza en dos niveles:
+
+```text
+DNI
+ └── Código de pago
+      └── Cartera
+           └── Producto + Deuda
+```
+
+Para cada código se calcula un subtotal y finalmente se calcula el total general.
 
 ### Validación del DNI
 
@@ -154,15 +176,60 @@ El frontend acepta únicamente:
 Ejemplos:
 
 ```text
-1234567    ✅
-12345678   ✅
-123456     ❌
-123456789  ❌
-12A45678   ❌
+1234567     ✅
+12345678    ✅
+123456      ❌
+123456789   ❌
+12A45678    ❌
 ```
 
----
+### Agrupación por Código de Pago
 
+La lógica actual agrupa primero por `Codigo` y luego por `Cartera`.
+
+Ejemplo:
+
+```text
+👤 Usuario
+📜 DNI: 12345678
+
+📋 Código de pago: ABC123       Subtotal: $50.000
+
+🏢 Cartera A
+   📌 Producto 1                 $30.000
+
+🏢 Cartera B
+   📌 Producto 2                 $20.000
+
+📋 Código de pago: XYZ789       Subtotal: $15.000
+
+🏢 Cartera C
+   📌 Producto 3                 $15.000
+
+────────────────────────────────────────
+💰 Deuda total                  $65.000
+```
+
+### Resumen por código
+
+Además del detalle, el frontend muestra un resumen compacto:
+
+```text
+📊 Resumen por código de pago
+
+📋 ABC123                         $50.000
+📋 XYZ789                         $15.000
+────────────────────────────────────────
+💰 Deuda total                   $65.000
+```
+
+Esto permite identificar rápidamente cuánto corresponde a cada código sin perder el detalle de las carteras y productos.
+
+### Fecha de mora
+
+Si alguno de los registros encontrados contiene `Fecha`, el frontend muestra la fecha de mora asociada.
+
+---
 # 📄 2. Estructura esperada de `deudas.csv`
 
 El frontend utiliza campos como:
@@ -205,18 +272,27 @@ El sistema puede mostrar:
 
 # 💳 3. Métodos de pago
 
-Cuando existen deudas, el frontend ofrece dos opciones:
+Una vez calculado el **total general**, el frontend ofrece:
 
 ```text
 💳 Mercado Pago
 🏦 Transferencia
 ```
 
-El importe mostrado corresponde al total calculado para el DNI consultado.
+Ambos métodos utilizan el mismo total general de la consulta.
 
-El frontend no realiza el pago directamente: muestra los datos de pago y permite continuar con el reporte posterior.
+Al seleccionar un método, el sistema vuelve a mostrar el desglose por código:
 
-> Los datos reales de CVU, CBU, alias y titulares deben mantenerse fuera de la documentación pública del repositorio si contienen información operativa o sensible.
+```text
+📊 Desglose por código de pago
+
+📋 ABC123                         $50.000
+📋 XYZ789                         $15.000
+────────────────────────────────────────
+Total                             $65.000
+```
+
+Después se muestran los datos correspondientes al método seleccionado.
 
 ---
 
@@ -226,17 +302,19 @@ El usuario puede reportar un pago desde la consulta.
 
 El formulario contiene:
 
-- **DNI** → obtenido de la consulta.
+- **DNI** → obtenido automáticamente de la consulta y en modo lectura.
 - **Nombre completo**.
 - **Monto pagado**.
 - **WhatsApp**.
 - **Comprobante** opcional.
 
-El comprobante acepta imágenes:
+El comprobante utiliza:
 
 ```html
 accept="image/*"
 ```
+
+y se muestra una vista previa antes del envío.
 
 ### Límite del frontend
 
@@ -249,7 +327,6 @@ Máximo: 5 MB
 Si supera el límite, el envío se detiene.
 
 ---
-
 # 📤 5. Envío al backend
 
 El frontend utiliza `FormData` y realiza:
@@ -291,6 +368,27 @@ Clave utilizada:
 ```text
 reportes_fyd
 ```
+
+La copia local contiene, entre otros datos:
+
+```json
+{
+  "fecha": "13/08/2026, 10:30:00",
+  "dni": "12345678",
+  "nombre": "Usuario",
+  "monto": "50000",
+  "whatsapp": "5491123456789"
+}
+```
+
+El estado local puede actualizarse con valores como:
+
+```text
+Pendiente
+✅ Enviado al servidor
+```
+
+Este estado indica la situación del envío desde el navegador y **no equivale al estado administrativo de verificación del backend**.
 
 La estructura conceptual es:
 
@@ -362,7 +460,31 @@ Esto permite separar los problemas relacionados con el archivo de los problemas 
 
 ---
 
-# 🗃️ 9. Almacenamiento en el VPS
+# 📤 9. Exportación local
+
+El frontend dispone de:
+
+```javascript
+exportarReportes()
+```
+
+La función toma los reportes almacenados en `localStorage` y genera un archivo JSON local con formato:
+
+```text
+reportes_YYYY-MM-DD.json
+```
+
+También existe:
+
+```javascript
+verReportesGuardados()
+```
+
+para inspeccionar los reportes almacenados localmente durante tareas de soporte o depuración.
+
+---
+
+# 🗃️ 10. Almacenamiento en el VPS
 
 La arquitectura del backend utiliza:
 
@@ -406,11 +528,11 @@ Ejemplo conceptual:
 
 ---
 
-# ⚠️ 10. Determinación de pendientes
+# ⚠️ 11. Determinación de pendientes
 
 La arquitectura documentada **no utiliza un campo `estado` como fuente principal para determinar pendientes**.
 
-La relación es:
+La relación administrativa es:
 
 ```text
 reportes.json
@@ -419,6 +541,16 @@ reportes.json
       ▼
 verificados.json
 ```
+
+Esto es independiente del estado local utilizado por el frontend:
+
+```text
+localStorage
+└── reportes_fyd
+      └── estado = "✅ Enviado al servidor"
+```
+
+El estado local indica que el navegador logró enviar el reporte; la verificación administrativa se registra en `verificados.json`.
 
 Conceptualmente:
 
@@ -440,7 +572,7 @@ DNI en reportes.json
 
 ---
 
-# 📲 11. Telegram
+# 📲 12. Telegram
 
 Después de almacenar el reporte, el backend notifica al grupo administrativo mediante la **Telegram Bot API**.
 
@@ -480,7 +612,7 @@ Ejemplo:
 
 ---
 
-# 🔐 12. Callbacks administrativos
+# 🔐 13. Callbacks administrativos
 
 Los botones utilizan callbacks asociados al DNI y teléfono del reporte.
 
@@ -512,7 +644,7 @@ El bot utiliza estos datos para identificar la operación y ejecutar la acción 
 
 ---
 
-# ✅ 13. Verificación administrativa
+# ✅ 14. Verificación administrativa
 
 El flujo es:
 
@@ -550,7 +682,7 @@ También puede generarse un enlace de contacto por WhatsApp.
 
 ---
 
-# ❌ 14. Rechazo
+# ❌ 15. Rechazo
 
 El administrador puede seleccionar:
 
@@ -568,7 +700,7 @@ El bot procesa la operación y actualiza la información mostrada en Telegram.
 
 ---
 
-# 📊 15. Comandos administrativos
+# 📊 16. Comandos administrativos
 
 El bot dispone de los siguientes comandos:
 
@@ -681,7 +813,7 @@ verificados:
 
 ---
 
-# 🔒 16. Seguridad
+# 🔒 17. Seguridad
 
 La arquitectura separa el frontend público de las funciones sensibles.
 
@@ -718,7 +850,7 @@ Esto evita que usuarios externos ejecuten comandos administrativos.
 
 ---
 
-# 🧩 17. Separación de responsabilidades
+# 🧩 18. Separación de responsabilidades
 
 ## Frontend
 
@@ -785,7 +917,7 @@ Responsabilidades:
 
 ---
 
-# 🗂️ 18. Estructura del proyecto
+# 🗂️ 19. Estructura del proyecto
 
 Estructura conceptual:
 
@@ -812,7 +944,7 @@ El backend y el bot requieren el entorno del VPS.
 
 ---
 
-# 🔁 19. Flujo completo
+# 🔁 20. Flujo completo
 
 ```text
                                 USUARIO
@@ -859,7 +991,7 @@ El backend y el bot requieren el entorno del VPS.
 
 ---
 
-# 📐 20. Modelo de datos
+# 📐 21. Modelo de datos
 
 ```text
                     ┌─────────────────┐
@@ -905,7 +1037,7 @@ El backend y el bot requieren el entorno del VPS.
 
 ---
 
-# 🛠️ 21. Stack tecnológico
+# 🛠️ 22. Stack tecnológico
 
 | Componente | Tecnología |
 |---|---|
@@ -923,13 +1055,11 @@ El backend y el bot requieren el entorno del VPS.
 
 ---
 
-# ⚙️ 22. Detalles de implementación del frontend
-
-El frontend incorpora varias medidas de tolerancia a errores.
+# ⚙️ 23. Detalles de implementación del frontend
 
 ### Carga de datos
 
-Al iniciar:
+Al iniciar el documento:
 
 ```text
 DOMContentLoaded
@@ -938,36 +1068,68 @@ DOMContentLoaded
       └── verReportesGuardados()
 ```
 
+`cargarDatos()` realiza un `GET` de `deudas.csv`, convierte el contenido mediante `csvToJson()` y marca los datos como disponibles.
+
 ### Fecha del catálogo
 
-El frontend intenta obtener:
+El frontend intenta utilizar el header HTTP:
 
 ```text
 Last-Modified
 ```
 
-del recurso `deudas.csv`.
-
-Si no está disponible, utiliza una fecha almacenada en:
+Si no está disponible, utiliza:
 
 ```text
-localStorage
-└── fecha_csv
+localStorage.fecha_csv
 ```
+
+y finalmente genera una fecha local como fallback.
 
 ### Consulta
 
-La consulta incluye una pequeña demora visual antes de mostrar el resultado:
+La función `consultar()`:
+
+1. Valida el DNI.
+2. Comprueba que el CSV esté cargado.
+3. Busca coincidencias exactas por DNI.
+4. Agrupa por `Codigo`.
+5. Calcula el subtotal de cada código.
+6. Agrupa cada código por `Cartera`.
+7. Calcula el total general.
+8. Muestra el resumen por código.
+9. Ofrece los métodos de pago.
+10. Permite reportar el pago.
+
+### Pago
+
+La función `pagar()` recibe:
 
 ```text
-400 ms
+metodo
+ total
 ```
 
-Esto permite mostrar el estado de carga de forma controlada.
+y reconstruye el desglose de códigos del DNI consultado para mostrarlo junto con los datos del método de pago.
+
+### Reporte
+
+La función `reportarPago()` crea dinámicamente el formulario y mantiene el DNI asociado a la consulta.
+
+La función `enviarReporte()`:
+
+- valida nombre y monto;
+- crea `FormData`;
+- valida el tamaño del comprobante;
+- guarda una copia local;
+- ejecuta el `POST` al VPS;
+- espera como máximo 60 segundos;
+- procesa la respuesta JSON;
+- limpia el formulario si el envío es correcto;
+- ofrece reintento sin comprobante si corresponde.
 
 ---
-
-# 🧪 23. Manejo de errores
+# 🧪 24. Manejo de errores
 
 El frontend contempla:
 
@@ -986,7 +1148,7 @@ Si la respuesta del backend no puede interpretarse como JSON, el frontend consid
 
 ---
 
-# ⚠️ 24. Consideraciones técnicas
+# ⚠️ 25. Consideraciones técnicas
 
 ## Comparación por DNI
 
@@ -1029,7 +1191,7 @@ Esto evitaría ambigüedades y permitiría conservar correctamente el historial 
 
 ---
 
-# 🚀 25. Posibles mejoras futuras
+# 🚀 26. Posibles mejoras futuras
 
 ### Identificador único de reporte
 
