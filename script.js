@@ -405,7 +405,7 @@ async function cargarDatos() {
 }
 
 // ============================================
-// CONSULTAR
+// CONSULTAR - CON TOTAL POR CÓDIGO DE PAGO INTEGRADO
 // ============================================
 
 function consultar() {
@@ -466,63 +466,138 @@ function consultar() {
             return;
         }
 
-        let total = 0;
+        let totalGeneral = 0;
         let html = `
                     <div class="deudor">👤 ${encontrados[0].Nombre || 'Sin nombre'}</div>
                     <div class="dni">📜 DNI: ${dni}</div>
-                    <div style="color: #8892a8; font-size: 13px; margin-bottom: 10px;">
-                        📋 Código de pago: ${encontrados[0].Codigo || 'N/A'}
-                    </div>
                     <hr style="border: none; border-top: 1px solid #2a2f4a; margin: 10px 0;">
                 `;
 
-        // Agrupar por cartera
-        const carteras = {};
+        // PRIMERO: Agrupar por CÓDIGO DE PAGO
+        const codigos = {};
         encontrados.forEach(d => {
-            const cartera = d.Cartera || 'Sin cartera';
-            if (!carteras[cartera]) {
-                carteras[cartera] = [];
+            const codigo = d.Codigo || 'Sin código';
+            if (!codigos[codigo]) {
+                codigos[codigo] = {
+                    items: [],
+                    total: 0
+                };
             }
-            carteras[cartera].push(d);
+            codigos[codigo].items.push(d);
         });
 
-        // Mostrar deudas agrupadas por cartera
-        Object.keys(carteras).forEach(cartera => {
-            html += `<div style="margin-bottom: 10px;">`;
-            html += `<div style="color: #7b61ff; font-weight: bold; font-size: 14px;">🏢 ${cartera}</div>`;
+        // Mostrar por cada código de pago
+        Object.keys(codigos).forEach(codigo => {
+            const grupo = codigos[codigo];
+            let totalCodigo = 0;
             
-            carteras[cartera].forEach(d => {
-                // Limpiar el monto: eliminar puntos, comas y convertir a número
+            // Calcular total del código
+            grupo.items.forEach(d => {
                 let montoStr = String(d.Deuda || '0').replace(/[.,]/g, '').trim();
                 const monto = parseFloat(montoStr) || 0;
-                total += monto;
-                
-                html += `
-                            <div class="deuda-item">
-                                <span class="entidad">📌 ${d.Producto || 'N/A'}</span>
-                                <span class="monto">$${monto.toLocaleString('es-AR')}</span>
-                            </div>
-                        `;
+                totalCodigo += monto;
+                totalGeneral += monto;
             });
+            
+            // Mostrar encabezado del código
+            html += `
+                        <div style="background: #1a1f35; padding: 10px 12px; border-radius: 8px; margin: 10px 0; border-left: 3px solid #7b61ff;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <span style="color: #7b61ff; font-weight: bold; font-size: 14px;">
+                                    📋 Código de pago: ${codigo}
+                                </span>
+                                <span style="color: #48bb78; font-weight: bold; font-size: 14px;">
+                                    Subtotal: $${totalCodigo.toLocaleString('es-AR')}
+                                </span>
+                            </div>
+                    `;
+            
+            // Agrupar por cartera dentro del código
+            const carteras = {};
+            grupo.items.forEach(d => {
+                const cartera = d.Cartera || 'Sin cartera';
+                if (!carteras[cartera]) {
+                    carteras[cartera] = [];
+                }
+                carteras[cartera].push(d);
+            });
+            
+            // Mostrar deudas por cartera
+            Object.keys(carteras).forEach(cartera => {
+                html += `<div style="margin: 5px 0 5px 10px;">`;
+                html += `<div style="color: #8892a8; font-size: 12px; margin-bottom: 3px;">🏢 ${cartera}</div>`;
+                
+                carteras[cartera].forEach(d => {
+                    let montoStr = String(d.Deuda || '0').replace(/[.,]/g, '').trim();
+                    const monto = parseFloat(montoStr) || 0;
+                    
+                    html += `
+                                <div class="deuda-item" style="padding: 4px 8px; margin-left: 10px;">
+                                    <span class="entidad" style="font-size: 13px;">📌 ${d.Producto || 'N/A'}</span>
+                                    <span class="monto" style="font-size: 13px;">$${monto.toLocaleString('es-AR')}</span>
+                                </div>
+                            `;
+                });
+                html += `</div>`;
+            });
+            
             html += `</div>`;
         });
 
-        // Agregar información de fecha si existe
-        if (encontrados[0].Fecha && encontrados[0].Fecha !== '') {
+        // Agregar fecha de mora si existe
+        const fechaMora = encontrados.find(d => d.Fecha && d.Fecha !== '');
+        if (fechaMora) {
             html += `
                         <div style="background: #2a1f3d; padding: 8px 12px; border-radius: 6px; margin: 10px 0; font-size: 13px; color: #fc8181;">
-                            ⚠️ Fecha de mora: ${encontrados[0].Fecha}
+                            ⚠️ Fecha de mora: ${fechaMora.Fecha}
                         </div>
                     `;
         }
 
+        // TOTAL GENERAL
         html += `
-                    <div class="total">💰 Deuda total: <span>$${total.toLocaleString('es-AR')}</span></div>
+                    <div class="total" style="margin-top: 15px; padding: 12px; background: #1a1f35; border-radius: 8px; border: 2px solid #7b61ff;">
+                        💰 Deuda total: <span style="color: #48bb78; font-size: 20px;">$${totalGeneral.toLocaleString('es-AR')}</span>
+                    </div>
+                    
+                    <div style="margin-top: 15px; background: #1a1f35; border-radius: 8px; border: 1px solid #2a2f4a; overflow: hidden;">
+                        <div style="background: #2a1f3d; padding: 8px 12px; border-bottom: 1px solid #2a2f4a;">
+                            <span style="color: #7b61ff; font-weight: bold; font-size: 13px;">📊 Resumen por código de pago</span>
+                        </div>
+                        <div style="padding: 8px 12px;">
+                    `;
+        
+        // Mostrar resumen de códigos con el mismo estilo que la lista
+        Object.keys(codigos).forEach((codigo, index) => {
+            const totalCodigo = codigos[codigo].items.reduce((sum, d) => {
+                let montoStr = String(d.Deuda || '0').replace(/[.,]/g, '').trim();
+                return sum + (parseFloat(montoStr) || 0);
+            }, 0);
+            
+            // Alternar colores de fondo para mejor legibilidad
+            const bgColor = index % 2 === 0 ? '#1a1f35' : '#1e2340';
+            
+            html += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: ${bgColor}; border-radius: 4px; margin: 2px 0;">
+                            <span style="color: #8892a8; font-size: 13px;">
+                                📋 ${codigo}
+                            </span>
+                            <span style="color: #48bb78; font-weight: bold; font-size: 14px;">
+                                $${totalCodigo.toLocaleString('es-AR')}
+                            </span>
+                        </div>
+                    `;
+        });
+        
+        html += `
+                        </div>
+                    </div>
+                    
                     <div class="botones-pago">
-                        <button class="btn-pago btn-mp" onclick="pagar('mp', ${total})">
+                        <button class="btn-pago btn-mp" onclick="pagar('mp', ${totalGeneral})">
                             💳 Mercado Pago
                         </button>
-                        <button class="btn-pago btn-transferencia" onclick="pagar('transferencia', ${total})">
+                        <button class="btn-pago btn-transferencia" onclick="pagar('transferencia', ${totalGeneral})">
                             🏦 Transferencia
                         </button>
                     </div>
@@ -541,17 +616,56 @@ function consultar() {
 }
 
 // ============================================
-// PAGAR
+// PAGAR - CON DETALLE DE CÓDIGOS
 // ============================================
 
 function pagar(metodo, total) {
+    const resultado = document.getElementById('resultado');
+    const dni = resultado.dataset.dni || document.getElementById('dniInput').value.trim();
     const totalFormateado = total.toLocaleString('es-AR');
+    
+    // Obtener los códigos de pago del DNI consultado
+    const encontrados = deudas.filter(d => String(d.DNI).trim() === dni);
+    const codigos = {};
+    encontrados.forEach(d => {
+        const codigo = d.Codigo || 'Sin código';
+        if (!codigos[codigo]) {
+            codigos[codigo] = 0;
+        }
+        let montoStr = String(d.Deuda || '0').replace(/[.,]/g, '').trim();
+        codigos[codigo] += parseFloat(montoStr) || 0;
+    });
+    
+    // Generar resumen de códigos para mostrar
+    let resumenCodigos = '';
+    Object.keys(codigos).forEach(codigo => {
+        resumenCodigos += `
+                    <div style="display: flex; justify-content: space-between; padding: 4px 8px; background: #1a1f35; border-radius: 4px; margin: 2px 0;">
+                        <span style="color: #8892a8; font-size: 13px;">📋 ${codigo}</span>
+                        <span style="color: #48bb78; font-weight: bold; font-size: 13px;">$${codigos[codigo].toLocaleString('es-AR')}</span>
+                    </div>
+                `;
+    });
 
     let html = '';
 
     if (metodo === 'mp') {
         html = `
                     <h3 style="text-align:center; color: #e8eaf0;">💳 Mercado Pago</h3>
+                    
+                    <div style="background: #1a1f35; padding: 12px; border-radius: 8px; margin: 10px 0;">
+                        <div style="color: #8892a8; font-size: 13px; margin-bottom: 8px; text-align: center;">
+                            📊 Desglose por código de pago
+                        </div>
+                        ${resumenCodigos}
+                        <div style="border-top: 1px solid #2a2f4a; margin: 8px 0; padding-top: 8px;">
+                            <div style="display: flex; justify-content: space-between; font-weight: bold;">
+                                <span style="color: #e8eaf0;">Total</span>
+                                <span style="color: #48bb78;">$${totalFormateado}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="datos-pago">
                         <p><b>CVU:</b> <code>0000003100064272868986</code></p>
                         <p><b>Alias:</b> <code>LUNA.FUTBOL.VELA</code></p>
@@ -566,6 +680,20 @@ function pagar(metodo, total) {
     } else {
         html = `
                     <h3 style="text-align:center; color: #e8eaf0;">🏦 Transferencia Bancaria</h3>
+                    
+                    <div style="background: #1a1f35; padding: 12px; border-radius: 8px; margin: 10px 0;">
+                        <div style="color: #8892a8; font-size: 13px; margin-bottom: 8px; text-align: center;">
+                            📊 Desglose por código de pago
+                        </div>
+                        ${resumenCodigos}
+                        <div style="border-top: 1px solid #2a2f4a; margin: 8px 0; padding-top: 8px;">
+                            <div style="display: flex; justify-content: space-between; font-weight: bold;">
+                                <span style="color: #e8eaf0;">Total</span>
+                                <span style="color: #48bb78;">$${totalFormateado}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="datos-pago">
                         <p><b>CBU:</b> <code>0000003100064272868986</code></p>
                         <p><b>Alias:</b> <code>CACA.APESTA.FEO</code></p>
@@ -580,7 +708,6 @@ function pagar(metodo, total) {
                 `;
     }
 
-    const resultado = document.getElementById('resultado');
     resultado.innerHTML = html;
     resultado.style.display = 'block';
 }
