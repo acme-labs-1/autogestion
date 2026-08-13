@@ -1,67 +1,67 @@
-# 🤖 Deuda Bot — Sistema de Gestión y Verificación de Pagos
+# 🤖 Deuda Bot — Sistema de Consulta, Reporte y Verificación de Pagos
 
 Sistema web + backend para **consulta de deudas, reporte de pagos y verificación administrativa mediante Telegram**.
 
-La arquitectura separa la consulta pública de deudas de la gestión interna de pagos:
+La arquitectura separa la operación pública de la administración interna:
 
-* **GitHub Pages** → frontend público y catálogo de deudas.
-* **VPS** → API PHP, almacenamiento de reportes y bot de Telegram.
-* **Telegram** → interfaz de administración y verificación.
-* **JSON** → almacenamiento de reportes y verificaciones.
+- **GitHub Pages** → frontend público y catálogo de deudas.
+- **VPS** → API PHP, almacenamiento de reportes y bot de Telegram.
+- **Telegram** → interfaz de administración y verificación.
+- **JSON** → persistencia de reportes y verificaciones.
+- **localStorage** → respaldo local de los reportes enviados desde el navegador.
+
+> **Nota:** este README documenta el comportamiento confirmado del frontend y la arquitectura descrita para el backend. La implementación PHP/bot no está incluida en los archivos revisados aquí, por lo que las validaciones internas del backend se describen como parte de la arquitectura, no como detalles auditados de código.
 
 ---
 
 ## 🏗️ Arquitectura
 
 ```text
-                        ┌──────────────────────┐
-                        │       USUARIO        │
-                        └──────────┬───────────┘
-                                   │
-                         Consulta DNI / Reporte
-                                   │
-                    ┌──────────────┴──────────────┐
-                    │                             │
-                    ▼                             ▼
-          ┌──────────────────┐          ┌──────────────────┐
-          │   GITHUB PAGES   │          │       VPS        │
-          │                  │          │                  │
-          │ HTML + JS        │          │ autogest_back.php│
-          │                  │          │                  │
-          │   deudas.csv     │          │  reportes.json   │
-          └──────────────────┘          └────────┬─────────┘
-                                                 │
-                                                 │ Telegram API
-                                                 ▼
-                                      ┌──────────────────────┐
-                                      │    ADMINISTRADORES   │
-                                      │       TELEGRAM       │
-                                      │                      │
-                                      │  ✅ Verificar        │
-                                      │  ❌ Rechazar         │
-                                      └──────────┬───────────┘
-                                                 │
-                                                 │ Callback
-                                                 ▼
-                                      ┌──────────────────────┐
-                                      │      BOT PYTHON      │
-                                      │                      │
-                                      │ verificados.json    │
-                                      │ /stats               │
-                                      │ /pendientes          │
-                                      │ /verificados         │
-                                      │ /suma                │
-                                      │ /exportar            │
-                                      └──────────────────────┘
+                              ┌──────────────────────┐
+                              │        USUARIO       │
+                              └──────────┬───────────┘
+                                         │
+                         Consulta DNI / Reporta pago
+                                         │
+                         ┌───────────────┴───────────────┐
+                         │                               │
+                         ▼                               ▼
+              ┌────────────────────┐          ┌────────────────────┐
+              │    GITHUB PAGES    │          │        VPS         │
+              │                    │          │                    │
+              │ HTML + CSS + JS    │          │ autogest_back.php  │
+              │ deudas.csv         │          │ reportes.json      │
+              └─────────┬──────────┘          └─────────┬──────────┘
+                        │                               │
+                        │                               │ Telegram Bot API
+                        │                               ▼
+                        │                    ┌────────────────────┐
+                        │                    │  ADMINISTRADORES   │
+                        │                    │      TELEGRAM      │
+                        │                    │                    │
+                        │                    │ ✅ Verificar       │
+                        │                    │ ❌ Rechazar        │
+                        │                    └─────────┬──────────┘
+                        │                              │
+                        │                              │ Callback
+                        │                              ▼
+                        │                    ┌────────────────────┐
+                        │                    │    BOT PYTHON      │
+                        │                    │                    │
+                        │                    │ verificados.json   │
+                        │                    │ comandos admin     │
+                        │                    └────────────────────┘
+                        │
+                        └────── Consulta directa del CSV
 ```
 
 ---
 
-# 🔄 Flujo del sistema
+# 🔄 Flujo general
 
-## 1. Consulta de deuda
+El sistema tiene dos recorridos principales:
 
-La consulta de deuda se realiza directamente desde el frontend.
+### 1. Consulta de deuda
 
 ```text
 Usuario
@@ -74,53 +74,383 @@ GitHub Pages
    ▼
 deudas.csv
    │
-   │ JavaScript procesa CSV
+   │ JavaScript
    ▼
 Filtrado por DNI
    │
    ▼
-Deudas + total
+Deudas agrupadas por cartera
+   │
+   ▼
+Total + métodos de pago
 ```
 
-El usuario ingresa su DNI en la página web.
+### 2. Reporte de pago
 
-El JavaScript descarga:
+```text
+Usuario
+   │
+   │ Completa formulario
+   │ DNI + nombre + monto
+   │ WhatsApp + comprobante opcional
+   ▼
+Frontend
+   │
+   ├── Guarda copia local
+   │   └── localStorage
+   │
+   │ FormData / POST
+   ▼
+autogest_back.php
+   │
+   ├── Validación
+   ├── Persistencia
+   └── Notificación
+          │
+          ▼
+      Telegram
+          │
+          ▼
+   Administradores
+          │
+      ┌───┴───┐
+      ▼       ▼
+  Verificar Rechazar
+```
+
+---
+
+# 🔎 1. Consulta de deuda
+
+La consulta se realiza **directamente desde el navegador**, sin necesidad de consultar el backend.
+
+El frontend descarga:
 
 ```text
 deudas.csv
 ```
 
-desde el repositorio de GitHub y procesa el archivo directamente en el navegador.
+y lo procesa mediante JavaScript.
 
-El frontend:
+## Proceso
 
-1. Descarga el CSV.
-2. Parsea las filas.
-3. Busca coincidencias por DNI.
-4. Obtiene las deudas correspondientes.
-5. Calcula el total.
-6. Muestra la información al usuario.
+1. Carga `deudas.csv`.
+2. Convierte el CSV a objetos JavaScript.
+3. Valida el DNI ingresado.
+4. Busca coincidencias exactas por DNI.
+5. Agrupa las deudas por cartera.
+6. Convierte los importes a números.
+7. Calcula la deuda total.
+8. Muestra los métodos de pago disponibles.
 
-Esta operación no requiere una consulta al backend.
+### Validación del DNI
+
+El frontend acepta únicamente:
+
+```text
+7 u 8 dígitos numéricos
+```
+
+Ejemplos:
+
+```text
+1234567    ✅
+12345678   ✅
+123456     ❌
+123456789  ❌
+12A45678   ❌
+```
 
 ---
 
-# 💳 2. Reporte de pago
+# 📄 2. Estructura esperada de `deudas.csv`
 
-Cuando el usuario realiza un pago, puede reportarlo desde la página web.
+El frontend utiliza campos como:
 
-El flujo es:
+```text
+DNI
+Nombre
+Codigo
+Cartera
+Producto
+Deuda
+Fecha
+```
+
+Ejemplo conceptual:
+
+```csv
+DNI,Nombre,Codigo,Cartera,Producto,Deuda,Fecha
+12345678,Usuario,ABC123,Cartera A,Producto 1,50000,06/08/2026
+12345678,Usuario,ABC123,Cartera B,Producto 2,25000,06/08/2026
+```
+
+El sistema puede mostrar:
+
+```text
+👤 Usuario
+📜 DNI: 12345678
+📋 Código de pago: ABC123
+
+🏢 Cartera A
+📌 Producto 1              $50.000
+
+🏢 Cartera B
+📌 Producto 2              $25.000
+
+💰 Deuda total:            $75.000
+```
+
+---
+
+# 💳 3. Métodos de pago
+
+Cuando existen deudas, el frontend ofrece dos opciones:
+
+```text
+💳 Mercado Pago
+🏦 Transferencia
+```
+
+El importe mostrado corresponde al total calculado para el DNI consultado.
+
+El frontend no realiza el pago directamente: muestra los datos de pago y permite continuar con el reporte posterior.
+
+> Los datos reales de CVU, CBU, alias y titulares deben mantenerse fuera de la documentación pública del repositorio si contienen información operativa o sensible.
+
+---
+
+# 📢 4. Reporte de pago
+
+El usuario puede reportar un pago desde la consulta.
+
+El formulario contiene:
+
+- **DNI** → obtenido de la consulta.
+- **Nombre completo**.
+- **Monto pagado**.
+- **WhatsApp**.
+- **Comprobante** opcional.
+
+El comprobante acepta imágenes:
+
+```html
+accept="image/*"
+```
+
+### Límite del frontend
+
+El archivo se comprueba antes del envío:
+
+```text
+Máximo: 5 MB
+```
+
+Si supera el límite, el envío se detiene.
+
+---
+
+# 📤 5. Envío al backend
+
+El frontend utiliza `FormData` y realiza:
+
+```text
+POST https://carover0.xyz/api/autogest_back.php
+```
+
+Contenido conceptual:
+
+```text
+multipart/form-data
+```
+
+Campos enviados:
+
+```text
+dni
+nombre
+monto
+whatsapp
+comprobante
+```
+
+El comprobante solo se agrega cuando el usuario selecciona uno.
+
+---
+
+# 💾 6. Persistencia local del reporte
+
+Antes de enviar el reporte al servidor, el frontend guarda una copia en:
+
+```text
+localStorage
+```
+
+Clave utilizada:
+
+```text
+reportes_fyd
+```
+
+La estructura conceptual es:
+
+```json
+{
+  "fecha": "13/08/2026, 10:30:00",
+  "dni": "12345678",
+  "nombre": "Usuario",
+  "monto": "50000",
+  "whatsapp": "5491123456789"
+}
+```
+
+Esto permite conservar información localmente si el servidor demora o si existe un problema temporal de comunicación.
+
+---
+
+# 🔁 7. Reintento de reportes
+
+El frontend dispone de mecanismos para trabajar con reportes pendientes de envío.
+
+Puede:
+
+1. Leer `reportes_fyd` desde `localStorage`.
+2. Identificar reportes que no figuren como enviados.
+3. Reenviarlos uno por uno.
+4. Esperar aproximadamente 1 segundo entre envíos.
+5. Marcar localmente los reportes enviados correctamente.
+
+También existe una función de consulta de los reportes almacenados para depuración:
+
+```text
+verReportesGuardados()
+```
+
+y una función de exportación:
+
+```text
+exportarReportes()
+```
+
+que genera un archivo JSON local.
+
+---
+
+# ⏱️ 8. Timeout y manejo de errores
+
+El envío principal utiliza un timeout de:
+
+```text
+60 segundos
+```
+
+Si se supera:
+
+```text
+El servidor está tardando en responder.
+```
+
+El frontend informa que el reporte quedó guardado localmente.
+
+Si el envío falla mientras se adjuntó un comprobante, se ofrece una segunda oportunidad:
+
+```text
+Reintentar sin comprobante
+```
+
+Esto permite separar los problemas relacionados con el archivo de los problemas generales del reporte.
+
+---
+
+# 🗃️ 9. Almacenamiento en el VPS
+
+La arquitectura del backend utiliza:
+
+```text
+VPS
+├── reportes.json
+└── verificados.json
+```
+
+## `reportes.json`
+
+Contiene los reportes recibidos desde el frontend.
+
+Ejemplo conceptual:
+
+```json
+{
+  "dni": "12345678",
+  "nombre": "Usuario",
+  "monto": 50000,
+  "telefono": "549XXXXXXXXXX",
+  "comprobante": "archivo.jpg",
+  "fecha": "2026-08-06 15:30:00"
+}
+```
+
+## `verificados.json`
+
+Contiene el histórico de operaciones verificadas.
+
+Ejemplo conceptual:
+
+```json
+{
+  "dni": "12345678",
+  "monto": 50000,
+  "verificado_por": "Admin",
+  "fecha_verificacion": "2026-08-06 15:45:00"
+}
+```
+
+---
+
+# ⚠️ 10. Determinación de pendientes
+
+La arquitectura documentada **no utiliza un campo `estado` como fuente principal para determinar pendientes**.
+
+La relación es:
+
+```text
+reportes.json
+      │
+      │ comparación por DNI
+      ▼
+verificados.json
+```
+
+Conceptualmente:
+
+```text
+PENDIENTES = REPORTES - VERIFICADOS
+```
+
+Por lo tanto:
+
+```text
+DNI en reportes.json
+        │
+        ├── existe en verificados.json → procesado
+        │
+        └── no existe                  → pendiente
+```
+
+> Esta lógica debe considerarse cuidadosamente si un mismo DNI puede realizar más de un pago o generar múltiples reportes. Comparar únicamente por DNI puede hacer que operaciones diferentes se consideren una sola operación.
+
+---
+
+# 📲 11. Telegram
+
+Después de almacenar el reporte, el backend notifica al grupo administrativo mediante la **Telegram Bot API**.
+
+Conceptualmente:
 
 ```text
 Frontend
    │
-   │ FormData
    ▼
 autogest_back.php
-   │
-   ├── Validación
-   │
-   ├── Guardado
    │
    ▼
 reportes.json
@@ -132,96 +462,32 @@ Telegram Bot API
 Grupo de administradores
 ```
 
-El formulario puede incluir:
+El mensaje incluye los datos necesarios para identificar la operación.
 
-* DNI
-* Nombre
-* Monto
-* Teléfono / WhatsApp
-* Comprobante
-
-Los datos se envían mediante `FormData` al endpoint PHP ubicado en el VPS.
-
-Ejemplo conceptual:
+Ejemplo:
 
 ```text
-POST /autogest_back.php
-Content-Type: multipart/form-data
-```
+💳 NUEVO REPORTE DE PAGO
+──────────────────────────────────
 
-La API PHP valida los datos recibidos y almacena el reporte.
+👤 Usuario : Usuario
+📌 DNI     : 12345678
+💰 Monto   : $50.000
+
+[ ✅ Verificar ]
+[ ❌ Rechazar  ]
+```
 
 ---
 
-# 🗃️ 3. Almacenamiento de reportes
+# 🔐 12. Callbacks administrativos
 
-Los reportes enviados por los usuarios se almacenan en:
+Los botones utilizan callbacks asociados al DNI y teléfono del reporte.
 
-```text
-reportes.json
-```
-
-Este archivo contiene la información necesaria para procesar posteriormente las verificaciones.
-
-Un registro puede contener conceptualmente:
-
-```json
-{
-    "dni": "12345678",
-    "nombre": "Usuario",
-    "monto": 50000,
-    "telefono": "549XXXXXXXXXX",
-    "comprobante": "archivo.jpg",
-    "fecha": "2026-08-06 15:30:00"
-}
-```
-
-> **Importante:** el bot no utiliza un campo `estado` para determinar si un reporte está pendiente.
-
-El estado se determina mediante la relación entre:
-
-```text
-reportes.json
-       │
-       │ comparación por DNI
-       ▼
-verificados.json
-```
-
-Por lo tanto:
-
-```text
-PENDIENTES = REPORTES - VERIFICADOS
-```
-
-La condición se determina por DNI.
-
----
-
-# 📲 4. Notificación a Telegram
-
-Después de almacenar el reporte, PHP utiliza la **Telegram Bot API** para enviar una notificación al grupo de administradores.
-
-El mensaje contiene los datos del reporte y botones inline:
-
-```text
-┌──────────────────────────────────┐
-│ 💳 NUEVO REPORTE DE PAGO         │
-│                                  │
-│ 👤 Usuario : Usuario             │
-│ 📌 DNI     : 12345678            │
-│ 💰 Monto   : $50,000             │
-│                                  │
-│ [ ✅ Verificar ]                 │
-│ [ ❌ Rechazar  ]                 │
-└──────────────────────────────────┘
-```
-
-Los botones contienen el DNI y el teléfono del reporte dentro del callback.
+### Verificar
 
 ```text
 verificar:DNI:telefono
-rechazar:DNI:telefono
 ```
 
 Ejemplo:
@@ -230,140 +496,100 @@ Ejemplo:
 verificar:12345678:549XXXXXXXXXX
 ```
 
-Esto permite al bot identificar el reporte y disponer del número de contacto asociado a la operación.
-
----
-
-# 🔐 5. Verificación administrativa
-
-La verificación se realiza directamente desde Telegram.
-
-```text
-Administrador
-      │
-      │ Click ✅ Verificar
-      ▼
-Telegram
-      │
-      │ Callback Query
-      │ verificar:DNI:telefono
-      ▼
-Bot Python
-      │
-      │ Consulta reportes.json
-      ▼
-Verificación
-      │
-      ▼
-verificados.json
-      │
-      ▼
-Actualizar mensaje
-```
-
-Cuando un administrador presiona:
-
-```text
-✅ Verificar
-```
-
-el bot:
-
-1. Recibe el `callback_query`.
-2. Extrae el DNI y teléfono.
-3. Busca el reporte correspondiente.
-4. Comprueba si ya fue verificado.
-5. Registra la operación en `verificados.json`.
-6. Actualiza el mensaje de Telegram.
-7. Muestra los datos del administrador que realizó la operación.
-8. Genera el enlace de WhatsApp correspondiente.
-
-El mensaje pasa a mostrar:
-
-```text
-✅ PAGO VERIFICADO
-───────────────────────────────────
-👤 Usuario : Usuario
-📌 DNI     : 12345678
-💰 Monto   : $50,000
-👤 Verificado por: Admin
-───────────────────────────────────
-📱 Contactar: https://wa.me/549XXXXXXXXXX
-```
-
----
-
-# ❌ 6. Rechazo de reportes
-
-El administrador también puede seleccionar:
-
-```text
-❌ Rechazar
-```
-
-El callback utilizado es:
+### Rechazar
 
 ```text
 rechazar:DNI:telefono
 ```
 
-El bot procesa la operación y muestra la información correspondiente al administrador.
-
-También se genera el enlace de WhatsApp asociado al teléfono del reporte:
-
-```text
-📱 Contactar: https://wa.me/549XXXXXXXXXX
-```
-
-Esto permite contactar rápidamente al usuario desde Telegram.
-
----
-
-# 📚 7. Historial de verificaciones
-
-Los pagos verificados se almacenan en:
-
-```text
-verificados.json
-```
-
-Este archivo funciona como histórico de las operaciones aprobadas.
-
-Conceptualmente:
-
-```json
-{
-    "dni": "12345678",
-    "monto": 50000,
-    "verificado_por": "Admin",
-    "fecha_verificacion": "2026-08-06 15:45:00"
-}
-```
-
-La información de `verificados.json` se utiliza para:
-
-* determinar qué reportes ya fueron procesados;
-* calcular pendientes;
-* mostrar verificaciones;
-* calcular sumas;
-* generar estadísticas;
-* exportar información.
-
----
-
-# 📊 8. Comandos administrativos
-
-El bot proporciona comandos para consultar y administrar la información almacenada en el VPS.
-
-## `/stats`
-
-Muestra estadísticas generales del sistema.
-
 Ejemplo:
 
 ```text
+rechazar:12345678:549XXXXXXXXXX
+```
+
+El bot utiliza estos datos para identificar la operación y ejecutar la acción correspondiente.
+
+---
+
+# ✅ 13. Verificación administrativa
+
+El flujo es:
+
+```text
+Administrador
+      │
+      │ Click "Verificar"
+      ▼
+Telegram
+      │
+      │ Callback Query
+      ▼
+Bot Python
+      │
+      ├── Busca reporte
+      ├── Comprueba verificación
+      ├── Registra operación
+      ▼
+verificados.json
+      │
+      ▼
+Actualiza mensaje de Telegram
+```
+
+La operación verificada registra conceptualmente:
+
+```text
+DNI
+Monto
+Administrador
+Fecha de verificación
+```
+
+También puede generarse un enlace de contacto por WhatsApp.
+
+---
+
+# ❌ 14. Rechazo
+
+El administrador puede seleccionar:
+
+```text
+❌ Rechazar
+```
+
+El callback asociado es:
+
+```text
+rechazar:DNI:telefono
+```
+
+El bot procesa la operación y actualiza la información mostrada en Telegram.
+
+---
+
+# 📊 15. Comandos administrativos
+
+El bot dispone de los siguientes comandos:
+
+| Comando | Función |
+|---|---|
+| `/stats` | Estadísticas generales |
+| `/pendientes` | Reportes todavía no verificados |
+| `/verificados` | Últimos pagos verificados |
+| `/suma` | Suma de pagos verificados |
+| `/exportar` | Exportación a CSV |
+| `/ruta` | Ubicación de archivos de datos |
+
+---
+
+## `/stats`
+
+Muestra información general:
+
+```text
 📊 ESTADÍSTICAS
-───────────────────────────────────
+──────────────────────────────────
 
 📋 Reportes:       125
 ⏳ Pendientes:      12
@@ -373,108 +599,75 @@ Ejemplo:
 💰 Total verificado:  $Y
 ```
 
-Los pendientes se calculan comparando los reportes existentes con los DNI que ya aparecen en `verificados.json`.
-
 ---
 
 ## `/pendientes`
 
-Muestra los reportes que todavía no fueron verificados.
+Muestra operaciones no verificadas:
 
 ```text
 📋 PENDIENTES
-───────────────────────────────────
+──────────────────────────────────
 
 👤 Usuario : Usuario
 📌 DNI     : 12345678
-💰 Monto   : $50,000
-
-👤 Usuario : Otro Usuario
-📌 DNI     : 87654321
-💰 Monto   : $25,000
-```
-
-La lista se obtiene mediante:
-
-```text
-reportes.json
-      │
-      ├── DNI verificado → excluir
-      │
-      └── DNI no verificado → pendiente
+💰 Monto   : $50.000
 ```
 
 ---
 
 ## `/verificados`
 
-Muestra los últimos pagos verificados.
+Muestra verificaciones recientes:
 
 ```text
 ✅ VERIFICADOS
-───────────────────────────────────
+──────────────────────────────────
 
 👤 Usuario : Usuario
 📌 DNI     : 12345678
-💰 Monto   : $50,000
-📅 Fecha   : 06/08/2026
-
-👤 Usuario : Otro Usuario
-📌 DNI     : 87654321
-💰 Monto   : $25,000
-📅 Fecha   : 06/08/2026
+💰 Monto   : $50.000
+📅 Fecha   : 13/08/2026
 ```
-
-Los datos se obtienen de `verificados.json`.
 
 ---
 
 ## `/suma`
 
-Calcula la suma de los pagos verificados.
+Calcula el total de operaciones verificadas:
 
 ```text
 💰 SUMA DE VERIFICADOS
-───────────────────────────────────
+──────────────────────────────────
 
 Cantidad: 108
 Total:    $X
-```
-
-El cálculo se realiza a partir de los registros almacenados en:
-
-```text
-verificados.json
 ```
 
 ---
 
 ## `/exportar`
 
-Genera un archivo CSV con la información disponible para su utilización externa.
+Genera un CSV para procesamiento externo:
 
 ```text
 reportes.json
       │
       ▼
-   Bot Python
+ Bot Python
       │
       ▼
-   CSV
+    CSV
       │
       ▼
 Administrador
 ```
 
-Esto permite realizar análisis, respaldos o procesamiento posterior de los datos.
-
 ---
 
 ## `/ruta`
 
-Muestra las ubicaciones utilizadas por el sistema para los archivos de datos.
-
-Ejemplo conceptual:
+Muestra las ubicaciones utilizadas para los archivos:
 
 ```text
 📁 ARCHIVOS
@@ -488,47 +681,13 @@ verificados:
 
 ---
 
-# 🗂️ Estructura de almacenamiento
+# 🔒 16. Seguridad
 
-El sistema utiliza un archivo CSV público y dos archivos JSON en el backend.
-
-```text
-GitHub Repository
-└── deudas.csv
-
-
-VPS
-├── reportes.json
-└── verificados.json
-```
-
-### `deudas.csv`
-
-Catálogo público de deudas.
-
-Es un recurso estático utilizado directamente por el frontend.
-
-### `reportes.json`
-
-Contiene los reportes enviados por los usuarios.
-
-No se utiliza un campo `estado` para determinar pendientes.
-
-### `verificados.json`
-
-Contiene el histórico de pagos procesados como verificados.
-
-La comparación entre ambos archivos permite determinar qué reportes continúan pendientes.
-
----
-
-# 🔒 Seguridad
-
-La arquitectura separa deliberadamente el frontend público de la lógica administrativa.
+La arquitectura separa el frontend público de las funciones sensibles.
 
 ## Token de Telegram
 
-El token del bot se encuentra exclusivamente en el VPS.
+El token del bot permanece exclusivamente en el VPS:
 
 ```text
 ❌ GitHub Pages
@@ -538,35 +697,15 @@ El token del bot se encuentra exclusivamente en el VPS.
 ✅ VPS
 ```
 
-El navegador nunca recibe las credenciales de Telegram.
-
----
-
-## Validación de API
-
-La API PHP valida los datos recibidos antes de almacenarlos.
-
-Las validaciones incluyen, según corresponda:
-
-* campos obligatorios;
-* formato del DNI;
-* monto;
-* teléfono;
-* comprobante;
-* tamaño del archivo;
-* tipo de archivo permitido.
-
----
+El navegador nunca debería recibir el token de Telegram.
 
 ## Autorización administrativa
 
-Las funciones administrativas están restringidas mediante:
+Las operaciones administrativas están restringidas mediante:
 
 ```text
 ADMIN_IDS
 ```
-
-El bot comprueba el ID de Telegram del usuario antes de ejecutar comandos y operaciones administrativas.
 
 Conceptualmente:
 
@@ -575,11 +714,11 @@ if user_id not in ADMIN_IDS:
     reject_request()
 ```
 
-Esto evita que usuarios externos puedan utilizar las funciones administrativas del bot.
+Esto evita que usuarios externos ejecuten comandos administrativos.
 
 ---
 
-# 🧩 Separación de responsabilidades
+# 🧩 17. Separación de responsabilidades
 
 ## Frontend
 
@@ -593,11 +732,17 @@ GitHub Pages
 
 Responsabilidades:
 
-* interfaz web;
-* consulta por DNI;
-* procesamiento del CSV;
-* cálculo y visualización de deudas;
-* envío de reportes.
+- interfaz pública;
+- carga del catálogo;
+- validación del DNI;
+- consulta de deudas;
+- agrupación por cartera;
+- cálculo del total;
+- visualización de métodos de pago;
+- reporte de pagos;
+- almacenamiento local temporal;
+- reintento de reportes;
+- exportación local de reportes.
 
 ---
 
@@ -608,14 +753,14 @@ VPS
 └── autogest_back.php
 ```
 
-Responsabilidades:
+Responsabilidades arquitectónicas:
 
-* recibir reportes;
-* validar datos;
-* almacenar información;
-* gestionar comprobantes;
-* comunicarse con Telegram;
-* mantener las credenciales privadas.
+- recibir reportes;
+- validar datos;
+- almacenar información;
+- gestionar comprobantes;
+- comunicarse con Telegram;
+- mantener las credenciales privadas.
 
 ---
 
@@ -628,77 +773,329 @@ VPS
 
 Responsabilidades:
 
-* recibir callbacks de Telegram;
-* verificar reportes;
-* rechazar reportes;
-* consultar JSON;
-* calcular pendientes;
-* generar estadísticas;
-* calcular sumas;
-* exportar datos;
-* ejecutar comandos administrativos.
+- recibir callbacks de Telegram;
+- verificar reportes;
+- rechazar reportes;
+- consultar JSON;
+- calcular pendientes;
+- generar estadísticas;
+- calcular sumas;
+- exportar información;
+- ejecutar comandos administrativos.
 
 ---
 
-# 🔁 Flujo completo
+# 🗂️ 18. Estructura del proyecto
+
+Estructura conceptual:
 
 ```text
-                         USUARIO
-                            │
-                  ┌─────────┴─────────┐
-                  │                   │
-             Consulta DNI        Reporta pago
-                  │              (con comprobante)
-                  ▼                   │
-             GitHub Pages             ▼
-                  │                VPS / PHP
-             deudas.csv                │
-                  │                    ▼
-                  │              reportes.json
-                  │                    │
-                  │                    ▼
-                  │          Telegram con botones
-                  │                    │
-                  │              ┌─────┴─────┐
-                  │              │           │
-                  │          Verificar    Rechazar
-                  │          callback     callback
-                  │          DNI + tel    DNI + tel
-                  │              │           │
-                  │              └─────┬─────┘
-                  │                    │
-                  │                    ▼
-                  │                Bot Python
-                  │                    │
-                  │          ┌─────────┼─────────┐
-                  │          │         │         │
-                  │          ▼         ▼         ▼
-                  │    verificados  Pendientes  Stats
-                  │       .json      calculados
-                  │          │       por diferencia
-                  │          │
-                  │          ▼
-                  │     /verificados
-                  │
-                  │
-                  └──────────► Resultado
+GitHub Repository
+│
+├── index.html
+├── styles.css
+├── script.js
+└── deudas.csv
+
+
+VPS
+│
+├── autogest_back.php
+├── reportes.json
+├── verificados.json
+└── bot.py
+```
+
+El frontend puede ejecutarse como sitio estático.
+
+El backend y el bot requieren el entorno del VPS.
+
+---
+
+# 🔁 19. Flujo completo
+
+```text
+                                USUARIO
+                                   │
+                    ┌──────────────┴──────────────┐
+                    │                             │
+               Consulta DNI                  Reporta pago
+                    │                    DNI + monto + WhatsApp
+                    │                       + comprobante
+                    ▼                             │
+             GitHub Pages                         ▼
+                    │                        VPS / PHP
+                    ▼                             │
+              deudas.csv                         ▼
+                    │                      reportes.json
+                    │                             │
+                    │                             ▼
+                    │                       Telegram Bot API
+                    │                             │
+                    │                             ▼
+                    │                       Administradores
+                    │                             │
+                    │                       ┌─────┴─────┐
+                    │                       │           │
+                    │                   Verificar    Rechazar
+                    │                       │           │
+                    │                       └─────┬─────┘
+                    │                             │
+                    │                             ▼
+                    │                        Bot Python
+                    │                             │
+                    │                ┌────────────┼────────────┐
+                    │                │            │            │
+                    │                ▼            ▼            ▼
+                    │          verificados   Pendientes     Stats
+                    │             .json       calculados
+                    │                │
+                    │                ▼
+                    │          /verificados
+                    │
+                    ▼
+                 Resultado
 ```
 
 ---
 
-# 📌 Comandos
+# 📐 20. Modelo de datos
 
 ```text
-📌 COMANDOS
-───────────────────────────────────
-
-/stats       - Estadísticas
-/pendientes  - Ver pendientes
-/verificados - Ver pagos verificados
-/suma        - Suma de verificados
-/exportar    - Exportar CSV
-/ruta        - Ubicación de archivos
+                    ┌─────────────────┐
+                    │   deudas.csv    │
+                    │                 │
+                    │ DNI             │
+                    │ Nombre          │
+                    │ Codigo          │
+                    │ Cartera         │
+                    │ Producto        │
+                    │ Deuda           │
+                    │ Fecha           │
+                    └────────┬────────┘
+                             │
+                             │ consulta
+                             ▼
+                         FRONTEND
+                             │
+                             │ reporte
+                             ▼
+                    ┌─────────────────┐
+                    │ reportes.json   │
+                    │                 │
+                    │ DNI             │
+                    │ Nombre          │
+                    │ Monto           │
+                    │ WhatsApp        │
+                    │ Comprobante     │
+                    │ Fecha           │
+                    └────────┬────────┘
+                             │
+                             │ verificación
+                             ▼
+                    ┌─────────────────┐
+                    │verificados.json │
+                    │                 │
+                    │ DNI             │
+                    │ Monto           │
+                    │ Admin           │
+                    │ Fecha           │
+                    └─────────────────┘
 ```
+
+---
+
+# 🛠️ 21. Stack tecnológico
+
+| Componente | Tecnología |
+|---|---|
+| Frontend | HTML / CSS / JavaScript |
+| Hosting frontend | GitHub Pages |
+| Datos públicos | CSV |
+| Backend | PHP |
+| Hosting backend | VPS |
+| Persistencia backend | JSON |
+| Persistencia local | Browser `localStorage` |
+| Bot | Python |
+| Administración | Telegram |
+| Comunicación | Telegram Bot API |
+| Exportación | CSV / JSON |
+
+---
+
+# ⚙️ 22. Detalles de implementación del frontend
+
+El frontend incorpora varias medidas de tolerancia a errores.
+
+### Carga de datos
+
+Al iniciar:
+
+```text
+DOMContentLoaded
+      │
+      ├── cargarDatos()
+      └── verReportesGuardados()
+```
+
+### Fecha del catálogo
+
+El frontend intenta obtener:
+
+```text
+Last-Modified
+```
+
+del recurso `deudas.csv`.
+
+Si no está disponible, utiliza una fecha almacenada en:
+
+```text
+localStorage
+└── fecha_csv
+```
+
+### Consulta
+
+La consulta incluye una pequeña demora visual antes de mostrar el resultado:
+
+```text
+400 ms
+```
+
+Esto permite mostrar el estado de carga de forma controlada.
+
+---
+
+# 🧪 23. Manejo de errores
+
+El frontend contempla:
+
+- CSV no disponible.
+- DNI inválido.
+- Datos todavía no cargados.
+- Archivo demasiado grande.
+- Respuesta HTTP no válida.
+- Respuesta del backend que no sea JSON.
+- Timeout de 60 segundos.
+- Error al enviar comprobante.
+- Reintento sin comprobante.
+- Reportes pendientes almacenados localmente.
+
+Si la respuesta del backend no puede interpretarse como JSON, el frontend considera que el servidor no respondió correctamente.
+
+---
+
+# ⚠️ 24. Consideraciones técnicas
+
+## Comparación por DNI
+
+La arquitectura actual utiliza el DNI como identificador principal para relacionar reportes y verificaciones.
+
+Esto funciona correctamente si:
+
+```text
+1 DNI = 1 operación relevante
+```
+
+pero puede ser insuficiente si:
+
+```text
+1 DNI → múltiples pagos
+```
+
+o:
+
+```text
+1 DNI → múltiples reportes
+```
+
+En una evolución futura sería preferible utilizar un identificador único de operación, por ejemplo:
+
+```text
+reporte_id
+```
+
+y relacionar:
+
+```text
+reporte_id
+    │
+    ├── reporte
+    └── verificación
+```
+
+Esto evitaría ambigüedades y permitiría conservar correctamente el historial de múltiples pagos del mismo DNI.
+
+---
+
+# 🚀 25. Posibles mejoras futuras
+
+### Identificador único de reporte
+
+```text
+REP-20260813-000123
+```
+
+Permitiría identificar cada operación independientemente del DNI.
+
+### Estado explícito
+
+En lugar de inferir el estado exclusivamente mediante archivos:
+
+```text
+pendiente
+verificado
+rechazado
+```
+
+Esto permitiría mantener un historial más preciso.
+
+### Base de datos
+
+Si el volumen crece, podría migrarse:
+
+```text
+JSON
+  ↓
+SQLite / MySQL / PostgreSQL
+```
+
+### API para consulta
+
+Actualmente:
+
+```text
+Frontend → deudas.csv
+```
+
+Una evolución posible:
+
+```text
+Frontend
+    │
+    ▼
+API
+    │
+    ▼
+Base de datos
+```
+
+### Auditoría
+
+Agregar:
+
+```text
+reporte_id
+admin_id
+fecha_creacion
+fecha_verificacion
+fecha_rechazo
+accion
+motivo
+```
+
+permitiría reconstruir completamente la historia de cada operación.
 
 ---
 
@@ -710,124 +1107,123 @@ Las credenciales y operaciones administrativas permanecen en el VPS.
 
 ### Simplicidad
 
-El catálogo de deudas utiliza un CSV estático que puede actualizarse fácilmente desde GitHub.
+El catálogo público utiliza un CSV estático que puede actualizarse fácilmente.
 
 ### Separación de responsabilidades
 
-El frontend público no tiene acceso directo a las funciones administrativas ni al token de Telegram.
+El frontend público no tiene acceso al token de Telegram ni a las funciones administrativas.
 
-### Centralización
+### Tolerancia a fallos
 
-Los reportes, verificaciones, estadísticas y exportaciones se gestionan desde el backend.
+Los reportes se conservan localmente para reducir el riesgo de pérdida ante fallos temporales de red o backend.
 
 ### Persistencia simple
 
-Los datos se almacenan en archivos JSON, evitando introducir una base de datos cuando el volumen y las necesidades del sistema no lo requieren.
+Los archivos JSON permiten mantener una arquitectura sencilla mientras el volumen de datos sea manejable.
 
----
+### Escalabilidad progresiva
 
-# 🛠️ Stack tecnológico
-
-| Componente       | Tecnología              |
-| ---------------- | ----------------------- |
-| Frontend         | HTML / CSS / JavaScript |
-| Hosting frontend | GitHub Pages            |
-| Datos públicos   | CSV                     |
-| Backend          | PHP                     |
-| Hosting backend  | VPS                     |
-| Persistencia     | JSON                    |
-| Bot              | Python                  |
-| Administración   | Telegram                |
-| Comunicación     | Telegram Bot API        |
-| Exportación      | CSV                     |
-
----
-
-# 📐 Resumen de arquitectura
+La arquitectura permite evolucionar desde:
 
 ```text
-GitHub Pages
-    │
-    └── Consulta de deudas
-             │
-             └── deudas.csv
+CSV + JSON
+```
 
+hacia:
 
-Usuario
-    │
-    └── Reporte de pago
-        (con comprobante)
-             │
-             ▼
-           VPS
-             │
-       autogest_back.php
-             │
-       ┌─────┴─────┐
-       ▼           ▼
-reportes.json   Telegram
-                   │
-        botones con DNI + teléfono
-                   │
-              Administradores
-                   │
-              Bot Python
-          callback DNI + teléfono
-                   │
-          ┌────────┼────────┬────────────┐
-          ▼        ▼        ▼            ▼
-  verificados   Pendientes  Stats    Exportar CSV
-     .json      calculados
-                   │
-                   ▼
-              /pendientes
+```text
+API + Base de datos
+```
 
-verificados.json
-       │
-       ├── /verificados
-       ├── /suma
-       └── cálculo de pendientes
+sin cambiar necesariamente la interfaz administrativa.
+
+---
+
+# 📌 Comandos
+
+```text
+📌 COMANDOS
+──────────────────────────────────
+
+/stats        - Estadísticas
+/pendientes   - Ver pendientes
+/verificados  - Ver pagos verificados
+/suma         - Suma de verificados
+/exportar     - Exportar CSV
+/ruta         - Ubicación de archivos
 ```
 
 ---
 
 # 🚀 Resumen
 
-El sistema utiliza una arquitectura distribuida pero sencilla:
+El sistema está dividido en tres capas:
 
 ```text
-                 ┌──────────────────┐
-                 │   GITHUB PAGES   │
-                 │                  │
-                 │  Consulta deuda  │
-                 └────────┬─────────┘
-                          │
-                       CSV estático
-                          │
-                          ▼
-                      USUARIO
-                          │
-                    Reporte de pago
-                          │
-                          ▼
-                 ┌──────────────────┐
-                 │       VPS        │
-                 │                  │
-                 │  PHP + JSON      │
-                 │  Python + Bot    │
-                 └────────┬─────────┘
-                          │
-                    Telegram API
-                          │
-                          ▼
-                 ┌──────────────────┐
-                 │ ADMINISTRADORES  │
-                 │                  │
-                 │ ✅ Verificar     │
-                 │ ❌ Rechazar      │
-                 └──────────────────┘
+┌─────────────────────────────────────┐
+│            FRONTEND                 │
+│                                     │
+│ GitHub Pages                        │
+│ HTML + CSS + JavaScript             │
+│ deudas.csv                          │
+│                                     │
+│ Consulta + Reporte                  │
+└──────────────────┬──────────────────┘
+                   │
+                   │ Reporte de pago
+                   ▼
+┌─────────────────────────────────────┐
+│              VPS                    │
+│                                     │
+│ PHP + JSON                          │
+│ Python + Telegram Bot               │
+│                                     │
+│ Persistencia + Administración       │
+└──────────────────┬──────────────────┘
+                   │
+                   │ Telegram Bot API
+                   ▼
+┌─────────────────────────────────────┐
+│          ADMINISTRADORES             │
+│                                     │
+│ ✅ Verificar                        │
+│ ❌ Rechazar                         │
+│ 📊 Estadísticas                    │
+│ 📋 Pendientes                       │
+│ 📤 Exportaciones                    │
+└─────────────────────────────────────┘
 ```
 
-El frontend se encarga de **consultar y recibir reportes**, mientras que el VPS concentra la **lógica sensible, persistencia y administración**.
+## Arquitectura resumida
 
-La verificación se realiza desde Telegram mediante callbacks que contienen **DNI + teléfono**, y el bot utiliza `verificados.json` para determinar qué reportes ya fueron procesados y cuáles continúan pendientes.
+```text
+deudas.csv
+    │
+    ▼
+GitHub Pages
+    │
+    ├── Consulta DNI
+    │
+    └── Reporte de pago
+            │
+            ▼
+        autogest_back.php
+            │
+            ├── reportes.json
+            │
+            └── Telegram
+                    │
+                    ▼
+                bot.py
+                    │
+                    ├── Verificar
+                    ├── Rechazar
+                    ├── Pendientes
+                    ├── Estadísticas
+                    ├── Sumas
+                    └── Exportar
+```
+
+El frontend se encarga de la **consulta y recepción de reportes**, mientras que el VPS concentra la **persistencia, comunicación con Telegram y administración**.
+
+La arquitectura actual es simple y funcional, pero el siguiente salto técnico importante sería incorporar un **ID único por operación** para dejar de depender exclusivamente del DNI como identificador de reportes y verificaciones.
