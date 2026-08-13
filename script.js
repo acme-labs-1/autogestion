@@ -26,23 +26,44 @@ function toggleAnswer(element) {
 }
 
 // ============================================
-// FUNCIoN PARA CONVERTIR CSV A JSON
+// FUNCIÓN PARA CONVERTIR CSV A JSON
 // ============================================
 
 function csvToJson(csv) {
     const lines = csv.trim().split('\n');
     if (lines.length === 0) return [];
     
-    const headers = lines[0].split(',').map(h => h.trim().toUpperCase());
+    const headers = lines[0].split(',').map(h => h.trim());
     const result = [];
 
     for (let i = 1; i < lines.length; i++) {
         if (!lines[i].trim()) continue;
 
-        const values = lines[i].split(',').map(v => v.trim());
+        // Dividir por coma pero respetando valores entre comillas
+        const values = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let char of lines[i]) {
+            if (char === '"') {
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                values.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        values.push(current.trim());
+        
         const obj = {};
         headers.forEach((header, index) => {
-            obj[header] = values[index] || '';
+            let value = values[index] || '';
+            // Limpiar comillas si existen
+            if (value.startsWith('"') && value.endsWith('"')) {
+                value = value.slice(1, -1);
+            }
+            obj[header] = value.trim();
         });
         result.push(obj);
     }
@@ -79,7 +100,7 @@ function guardarReporteLocal(datos) {
 }
 
 // ============================================
-// ENVIAR REPORTE AL VPS CON COMPROBANTE
+// ENVIAR REPORTE AL VPS CON COMPROBANTE - VERSION ORIGINAL MEJORADA
 // ============================================
 
 async function enviarReporte() {
@@ -105,7 +126,14 @@ async function enviarReporte() {
     formData.append('monto', monto);
     formData.append('whatsapp', whatsapp || 'No proporcionado');
     
+    // Verificar tamaño del archivo
     if (archivoInput.files && archivoInput.files[0]) {
+        const fileSize = archivoInput.files[0].size / 1024 / 1024; // en MB
+        if (fileSize > 5) {
+            alert('⚠️ El archivo es muy grande (' + fileSize.toFixed(1) + 'MB). Máximo permitido: 5MB');
+            statusDiv.style.display = 'none';
+            return;
+        }
         formData.append('comprobante', archivoInput.files[0]);
     }
 
@@ -118,19 +146,41 @@ async function enviarReporte() {
     guardarReporteLocal(datosReporte);
 
     try {
+        // Timeout de 60 segundos para el fetch
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
+
         const response = await fetch('https://carover0.xyz/api/autogest_back.php', {
             method: 'POST',
-            body: formData
+            body: formData,
+            signal: controller.signal
         });
 
-        const resultado = await response.json();
+        clearTimeout(timeoutId);
+
+        // Verificar que la respuesta sea JSON
+        const text = await response.text();
+        let resultado;
+        try {
+            resultado = JSON.parse(text);
+        } catch (e) {
+            console.error('Respuesta no JSON:', text);
+            throw new Error('El servidor no respondió correctamente. Intenta sin comprobante.');
+        }
 
         if (resultado.ok) {
             statusDiv.innerHTML = '✅ ¡Reporte enviado correctamente!';
             statusDiv.style.color = '#48bb78';
 
             alert(
-                `✅ ¡Reporte enviado!\n\nDNI: ${dni}\nNombre: ${nombre}\nMonto: $${parseFloat(monto).toLocaleString('es-AR')}\nWhatsApp: ${whatsapp || 'No proporcionado'}\n\n⏳ Tu pago sera procesado a la brevedad.`);
+                `✅ ¡Reporte enviado!\n\nDNI: ${dni}\nNombre: ${nombre}\nMonto: $${parseFloat(monto).toLocaleString('es-AR')}\nWhatsApp: ${whatsapp || 'No proporcionado'}\n\n⏳ Tu pago será procesado a la brevedad.`);
+
+            // Limpiar campos
+            document.getElementById('reporteNombre').value = '';
+            document.getElementById('reporteMonto').value = '';
+            document.getElementById('reporteWhatsApp').value = '';
+            document.getElementById('reporteArchivo').value = '';
+            document.getElementById('previewImage').style.display = 'none';
 
             setTimeout(() => consultar(), 1500);
         } else {
@@ -138,9 +188,156 @@ async function enviarReporte() {
         }
     } catch (error) {
         console.error('Error:', error);
-        statusDiv.innerHTML = `❌ Error al enviar: ${error.message}`;
-        statusDiv.style.color = '#fc8181';
-        alert(`❌ Error al enviar el reporte: ${error.message}\n\nIntenta nuevamente.`);
+        
+        // Si es error de abort, mostrar mensaje de tiempo
+        if (error.name === 'AbortError') {
+            statusDiv.innerHTML = '⏳ El servidor está tardando en responder. El reporte se guardó localmente.';
+            statusDiv.style.color = '#f6ad55';
+            alert(
+                `⏳ Tiempo de espera agotado\n\n` +
+                `El servidor está procesando tu solicitud.\n` +
+                `Tu reporte se ha guardado localmente.\n` +
+                `Intenta nuevamente o espera la confirmación.\n\n` +
+                `Si el problema persiste, envía sin comprobante.`
+            );
+        } else {
+            statusDiv.innerHTML = `❌ Error: ${error.message}`;
+            statusDiv.style.color = '#fc8181';
+            
+            // Ofrecer intentar sin comprobante
+            if (archivoInput.files && archivoInput.files[0]) {
+                const reintentar = confirm(
+                    `❌ Error al enviar con comprobante.\n\n` +
+                    `${error.message}\n\n` +
+                    `¿Quieres intentar enviar SIN el comprobante?\n` +
+                    `(Los datos de pago se guardarán igual)`
+                );
+                if (reintentar) {
+                    // Limpiar el archivo y reintentar
+                    archivoInput.value = '';
+                    document.getElementById('previewImage').style.display = 'none';
+                    // Llamar de nuevo pero sin archivo
+                    await enviarReporte();
+                    return;
+                }
+            }
+            
+            alert(`❌ Error al enviar el reporte: ${error.message}\n\nIntenta nuevamente.`);
+        }
+    }
+}
+
+// ============================================
+// ACTUALIZAR REPORTE LOCAL
+// ============================================
+
+function actualizarReporteLocal(dni, estado) {
+    try {
+        const stored = localStorage.getItem('reportes_fyd');
+        if (!stored) return;
+        
+        let reportes = JSON.parse(stored);
+        // Buscar el último reporte con ese DNI y actualizarlo
+        for (let i = reportes.length - 1; i >= 0; i--) {
+            if (reportes[i].dni === dni) {
+                reportes[i].estado = estado;
+                reportes[i].fecha_actualizacion = new Date().toLocaleString('es-AR');
+                break;
+            }
+        }
+        
+        localStorage.setItem('reportes_fyd', JSON.stringify(reportes));
+        console.log('📝 Reporte actualizado localmente:', { dni, estado });
+    } catch (error) {
+        console.error('Error al actualizar reporte:', error);
+    }
+}
+
+// ============================================
+// VER ESTADO DE REPORTES GUARDADOS
+// ============================================
+
+function verEstadoReportes() {
+    try {
+        const stored = localStorage.getItem('reportes_fyd');
+        if (!stored) {
+            console.log('📭 No hay reportes guardados');
+            return [];
+        }
+        
+        const reportes = JSON.parse(stored);
+        console.log(`📊 Total reportes: ${reportes.length}`);
+        console.log('📋 Últimos 5 reportes:');
+        
+        const ultimos = reportes.slice(-5);
+        ultimos.forEach((r, i) => {
+            console.log(`  ${i+1}. DNI: ${r.dni} | ${r.nombre} | $${r.monto} | Estado: ${r.estado || 'Pendiente'}`);
+        });
+        
+        return reportes;
+    } catch (error) {
+        console.error('Error al leer reportes:', error);
+        return [];
+    }
+}
+
+// ============================================
+// REENVIAR REPORTES PENDIENTES
+// ============================================
+
+async function reenviarReportesPendientes() {
+    try {
+        const stored = localStorage.getItem('reportes_fyd');
+        if (!stored) {
+            alert('📭 No hay reportes para reenviar');
+            return;
+        }
+        
+        const reportes = JSON.parse(stored);
+        const pendientes = reportes.filter(r => !r.estado || r.estado !== '✅ Enviado al servidor');
+        
+        if (pendientes.length === 0) {
+            alert('✅ Todos los reportes están enviados correctamente');
+            return;
+        }
+        
+        console.log(`📤 Reenviando ${pendientes.length} reportes pendientes...`);
+        let enviados = 0;
+        
+        for (const reporte of pendientes) {
+            const formData = new FormData();
+            formData.append('dni', reporte.dni);
+            formData.append('nombre', reporte.nombre);
+            formData.append('monto', reporte.monto);
+            formData.append('whatsapp', reporte.whatsapp || 'No proporcionado');
+            
+            try {
+                const response = await fetch('https://carover0.xyz/api/autogest_back.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const resultado = await response.json();
+                    if (resultado.ok) {
+                        enviados++;
+                        actualizarReporteLocal(reporte.dni, '✅ Enviado al servidor');
+                        console.log(`✅ Reporte de ${reporte.nombre} reenviado`);
+                    }
+                }
+            } catch (error) {
+                console.error(`❌ Error al reenviar reporte de ${reporte.nombre}:`, error);
+            }
+            
+            // Pequeña pausa entre envíos
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        
+        alert(`✅ Reenvío completado\n\nSe reenviaron ${enviados} de ${pendientes.length} reportes pendientes.`);
+        
+    } catch (error) {
+        console.error('Error al reenviar reportes:', error);
+        alert('❌ Error al reenviar reportes');
     }
 }
 
@@ -161,6 +358,8 @@ async function cargarDatos() {
         datosCargados = true;
 
         console.log(`✅ ${deudas.length} deudas cargadas correctamente`);
+        console.log('📋 Primer registro:', deudas[0]); // Para debug
+        
         document.getElementById('errorCarga').style.display = 'none';
 
         const lastModified = response.headers.get('Last-Modified');
@@ -199,7 +398,7 @@ async function cargarDatos() {
         document.getElementById('errorCarga').style.display = 'block';
         document.getElementById('errorCarga').innerHTML = `
                     ❌ No se pudo cargar el archivo de deudas.<br>
-                    Verifica que el archivo <b>deudas.csv</b> este en el mismo directorio.<br>
+                    Verifica que el archivo <b>deudas.csv</b> esté en el mismo directorio.<br>
                     <small style="color: #fc8181;">${error.message}</small>
                 `;
     }
@@ -221,8 +420,8 @@ function consultar() {
         resultado.innerHTML = `
                     <div class="no-encontrado">
                         <div class="icono">❌</div>
-                        <div class="mensaje">DNI invalido</div>
-                        <div class="detalle">Debe tener 7 u 8 digitos numericos</div>
+                        <div class="mensaje">DNI inválido</div>
+                        <div class="detalle">Debe tener 7 u 8 dígitos numéricos</div>
                     </div>
                 `;
         resultado.style.display = 'block';
@@ -247,8 +446,8 @@ function consultar() {
     resultado.style.display = 'none';
 
     setTimeout(() => {
-        // BUSCAR POR DNI EN LA COLUMNA CUENTA
-        const encontrados = deudas.filter(d => String(d.CUENTA).trim() === dni);
+        // BUSCAR POR DNI
+        const encontrados = deudas.filter(d => String(d.DNI).trim() === dni);
         
         loading.style.display = 'none';
 
@@ -269,21 +468,53 @@ function consultar() {
 
         let total = 0;
         let html = `
-                    <div class="deudor">👤 ${encontrados[0].DEUDOR}</div>
+                    <div class="deudor">👤 ${encontrados[0].Nombre || 'Sin nombre'}</div>
                     <div class="dni">📜 DNI: ${dni}</div>
+                    <div style="color: #8892a8; font-size: 13px; margin-bottom: 10px;">
+                        📋 Código de pago: ${encontrados[0].Codigo || 'N/A'}
+                    </div>
                     <hr style="border: none; border-top: 1px solid #2a2f4a; margin: 10px 0;">
                 `;
 
+        // Agrupar por cartera
+        const carteras = {};
         encontrados.forEach(d => {
-            const monto = parseFloat(String(d.TOTAL).replace(/[.,]/g, '')) || 0;
-            total += monto;
+            const cartera = d.Cartera || 'Sin cartera';
+            if (!carteras[cartera]) {
+                carteras[cartera] = [];
+            }
+            carteras[cartera].push(d);
+        });
+
+        // Mostrar deudas agrupadas por cartera
+        Object.keys(carteras).forEach(cartera => {
+            html += `<div style="margin-bottom: 10px;">`;
+            html += `<div style="color: #7b61ff; font-weight: bold; font-size: 14px;">🏢 ${cartera}</div>`;
+            
+            carteras[cartera].forEach(d => {
+                // Limpiar el monto: eliminar puntos, comas y convertir a número
+                let montoStr = String(d.Deuda || '0').replace(/[.,]/g, '').trim();
+                const monto = parseFloat(montoStr) || 0;
+                total += monto;
+                
+                html += `
+                            <div class="deuda-item">
+                                <span class="entidad">📌 ${d.Producto || 'N/A'}</span>
+                                <span class="monto">$${monto.toLocaleString('es-AR')}</span>
+                            </div>
+                        `;
+            });
+            html += `</div>`;
+        });
+
+        // Agregar información de fecha si existe
+        if (encontrados[0].Fecha && encontrados[0].Fecha !== '') {
             html += `
-                        <div class="deuda-item">
-                            <span class="entidad">🏢 ${d.ENTIDAD}</span>
-                            <span class="monto">$${monto.toLocaleString('es-AR')}</span>
+                        <div style="background: #2a1f3d; padding: 8px 12px; border-radius: 6px; margin: 10px 0; font-size: 13px; color: #fc8181;">
+                            ⚠️ Fecha de mora: ${encontrados[0].Fecha}
                         </div>
                     `;
-        });
+        }
 
         html += `
                     <div class="total">💰 Deuda total: <span>$${total.toLocaleString('es-AR')}</span></div>
@@ -328,7 +559,7 @@ function pagar(metodo, total) {
                     </div>
                     <p class="monto-exacto">Monto exacto: $${totalFormateado}</p>
                     <div style="display:flex; flex-direction:column; gap:8px;">
-                        <button class="btn-pago btn-reportar" onclick="reportarPago()">✅ Ya pague, reportar</button>
+                        <button class="btn-pago btn-reportar" onclick="reportarPago()">✅ Ya pagué, reportar</button>
                         <button class="btn-cancelar-pago" onclick="consultar()">❌ Volver</button>
                     </div>
                 `;
@@ -343,7 +574,7 @@ function pagar(metodo, total) {
                     </div>
                     <p class="monto-exacto">Monto exacto: $${totalFormateado}</p>
                     <div style="display:flex; flex-direction:column; gap:8px;">
-                        <button class="btn-pago btn-reportar" onclick="reportarPago()">✅ Ya pague, reportar</button>
+                        <button class="btn-pago btn-reportar" onclick="reportarPago()">✅ Ya pagué, reportar</button>
                         <button class="btn-cancelar-pago" onclick="consultar()">❌ Volver</button>
                     </div>
                 `;
@@ -384,7 +615,7 @@ function reportarPago() {
                 <div class="form-group">
                     <label>📱 WhatsApp</label>
                     <input type="text" id="reporteWhatsApp" placeholder="Ej: 5491123456789">
-                    <small>Con este numero el administrador te confirmara el pago</small>
+                    <small>Con este número el administrador te confirmará el pago</small>
                 </div>
 
                 <div class="form-group">
@@ -428,7 +659,7 @@ function verReportesGuardados() {
         if (stored) {
             const reportes = JSON.parse(stored);
             console.log(`📊 Total reportes guardados: ${reportes.length}`);
-            console.log('📝 ultimos 5 reportes:', reportes.slice(-5));
+            console.log('📝 Últimos 5 reportes:', reportes.slice(-5));
             return reportes;
         } else {
             console.log('📭 No hay reportes guardados');
