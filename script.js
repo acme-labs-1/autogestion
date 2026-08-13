@@ -713,16 +713,66 @@ function pagar(metodo, total) {
 }
 
 // ============================================
-// REPORTAR PAGO
+// REPORTAR PAGO - CON COMPROBANTE MEJORADO
 // ============================================
 
 function reportarPago() {
     const resultado = document.getElementById('resultado');
     const dni = resultado.dataset.dni || document.getElementById('dniInput').value.trim();
+    
+    // Obtener los códigos de pago y totales para mostrar en el formulario
+    const encontrados = deudas.filter(d => String(d.DNI).trim() === dni);
+    const codigos = {};
+    let totalGeneral = 0;
+    
+    encontrados.forEach(d => {
+        const codigo = d.Codigo || 'Sin código';
+        if (!codigos[codigo]) {
+            codigos[codigo] = 0;
+        }
+        let montoStr = String(d.Deuda || '0').replace(/[.,]/g, '').trim();
+        const monto = parseFloat(montoStr) || 0;
+        codigos[codigo] += monto;
+        totalGeneral += monto;
+    });
+    
+    // Generar resumen de códigos para mostrar en el formulario
+    let resumenCodigos = '';
+    let index = 0;
+    Object.keys(codigos).forEach(codigo => {
+        const bgColor = index % 2 === 0 ? '#1a1f35' : '#1e2340';
+        resumenCodigos += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 10px; background: ${bgColor}; border-radius: 4px; margin: 2px 0;">
+                        <span style="color: #8892a8; font-size: 12px;">📋 ${codigo}</span>
+                        <span style="color: #48bb78; font-weight: bold; font-size: 13px;">$${codigos[codigo].toLocaleString('es-AR')}</span>
+                    </div>
+                `;
+        index++;
+    });
 
     const html = `
                 <h3 style="text-align:center; color: #e8eaf0;">📢 Reportar Pago</h3>
-                <p style="text-align:center; color: #8892a8; font-size: 14px;">Completa los datos para verificar tu pago</p>
+                <p style="text-align:center; color: #8892a8; font-size: 14px;">Completa los datos para verificar tu pago. Envía un reporte por comprobante.</p>
+                
+                <!-- Resumen de deuda -->
+                <div style="background: #1a1f35; padding: 10px; border-radius: 8px; margin: 10px 0; border: 1px solid #2a2f4a;">
+                    <div style="color: #7b61ff; font-weight: bold; font-size: 13px; margin-bottom: 6px;">📊 Resumen de deuda</div>
+                    ${resumenCodigos}
+                    <div style="border-top: 1px solid #2a2f4a; margin-top: 6px; padding-top: 6px; display: flex; justify-content: space-between;">
+                        <span style="color: #e8eaf0; font-weight: bold;">Total a pagar</span>
+                        <span style="color: #48bb78; font-weight: bold; font-size: 16px;">$${totalGeneral.toLocaleString('es-AR')}</span>
+                    </div>
+                </div>
+
+                <!-- Instrucciones para el comprobante -->
+                <div style="background: #2a1f3d; padding: 10px; border-radius: 8px; margin: 10px 0; border-left: 3px solid #f6ad55;">
+                    <div style="color: #f6ad55; font-weight: bold; font-size: 13px; margin-bottom: 4px;">📌 Importante</div>
+                    <ul style="color: #8892a8; font-size: 12px; margin: 4px 0; padding-left: 20px;">
+                        <li>Adjunta una captura o foto del comprobante de pago</li>
+                        <li>El monto debe coincidir con el total a pagar</li>
+                        <li>Recibirás confirmación por WhatsApp en 24-48 horas</li>
+                    </ul>
+                </div>
 
                 <div class="form-group">
                     <label>📌 DNI</label>
@@ -730,29 +780,34 @@ function reportarPago() {
                 </div>
 
                 <div class="form-group">
-                    <label>👤 Nombre completo</label>
-                    <input type="text" id="reporteNombre" placeholder="Ej: Juan Perez">
+                    <label>👤 Nombre completo <span style="color: #fc8181;">*</span></label>
+                    <input type="text" id="reporteNombre" placeholder="Ej: Juan Perez" required>
                 </div>
 
                 <div class="form-group">
-                    <label>💰 Monto pagado</label>
-                    <input type="number" id="reporteMonto" placeholder="Ej: 11512">
+                    <label>💰 Monto pagado <span style="color: #fc8181;">*</span></label>
+                    <input type="number" id="reporteMonto" placeholder="Ej: 11512" value="${totalGeneral}" required>
                 </div>
 
                 <div class="form-group">
-                    <label>📱 WhatsApp</label>
-                    <input type="text" id="reporteWhatsApp" placeholder="Ej: 5491123456789">
-                    <small>Con este número el administrador te confirmará el pago</small>
+                    <label>📱 WhatsApp <span style="color: #fc8181;">*</span></label>
+                    <input type="text" id="reporteWhatsApp" placeholder="Ej: 5491123456789" required>
+                    <small>📲 Con este número el administrador te confirmará el pago</small>
                 </div>
 
                 <div class="form-group">
-                    <label>📎 Adjuntar comprobante (opcional)</label>
-                    <input type="file" id="reporteArchivo" accept="image/*">
-                    <img id="previewImage" class="preview-image" />
+                    <label>📎 Adjuntar comprobante <span style="color: #f6ad55;">(opcional pero recomendado)</span></label>
+                    <input type="file" id="reporteArchivo" accept="image/*,.pdf">
+                    <div style="margin-top: 5px;">
+                        <img id="previewImage" class="preview-image" style="display: none; max-width: 100%; max-height: 200px; border-radius: 8px; border: 1px solid #2a2f4a;" />
+                        <div id="fileInfo" style="display: none; color: #8892a8; font-size: 12px; margin-top: 4px;"></div>
+                    </div>
                 </div>
 
                 <div style="display:flex; flex-direction:column; gap:8px;">
-                    <button class="btn-pago btn-reportar" onclick="enviarReporte()">📤 Enviar reporte</button>
+                    <button class="btn-pago btn-reportar" onclick="enviarReporte()" id="btnEnviarReporte">
+                        📤 Enviar reporte
+                    </button>
                     <button class="btn-cancelar-pago" onclick="consultar()">❌ Cancelar</button>
                 </div>
                 <div id="envioStatus" class="envio-status"></div>
@@ -761,17 +816,39 @@ function reportarPago() {
     resultado.innerHTML = html;
     resultado.style.display = 'block';
 
+    // Manejar la previsualización del archivo
     document.getElementById('reporteArchivo')?.addEventListener('change', function(e) {
         const preview = document.getElementById('previewImage');
+        const fileInfo = document.getElementById('fileInfo');
+        
         if (this.files && this.files[0]) {
-            const reader = new FileReader();
-            reader.onload = function(ev) {
-                preview.src = ev.target.result;
-                preview.style.display = 'block';
-            };
-            reader.readAsDataURL(this.files[0]);
+            const file = this.files[0];
+            const fileSize = (file.size / 1024 / 1024).toFixed(2);
+            
+            // Mostrar información del archivo
+            fileInfo.style.display = 'block';
+            fileInfo.innerHTML = `
+                        📄 ${file.name} (${fileSize} MB)
+                        ${fileSize > 5 ? ' ⚠️ Archivo grande, puede tardar en enviarse' : ''}
+                    `;
+            fileInfo.style.color = fileSize > 5 ? '#fc8181' : '#48bb78';
+            
+            // Previsualizar imagen
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    preview.src = ev.target.result;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                // Si no es imagen, mostrar icono
+                preview.style.display = 'none';
+                fileInfo.innerHTML += ' 📎 (Archivo no previsualizable)';
+            }
         } else {
             preview.style.display = 'none';
+            fileInfo.style.display = 'none';
         }
     });
 }
