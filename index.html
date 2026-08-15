@@ -5,6 +5,173 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Autogestion FYD ONLINE</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* ---------- Estilos del panel Informame ---------- */
+        .informame-panel {
+            display: none;
+            position: fixed;
+            bottom: 90px;
+            right: 28px;
+            width: 420px;
+            max-width: 92vw;
+            max-height: 500px;
+            overflow-y: auto;
+            padding: 20px;
+            background: #1a1f33;
+            border-radius: 12px;
+            border: 1px solid #2a2f4a;
+            z-index: 1000;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+            animation: fadeIn 0.3s ease;
+        }
+        .informame-panel.active {
+            display: block;
+        }
+
+        .informame-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+        .informame-panel::-webkit-scrollbar-track {
+            background: #151928;
+            border-radius: 3px;
+        }
+        .informame-panel::-webkit-scrollbar-thumb {
+            background: #4a5270;
+            border-radius: 3px;
+        }
+        .informame-panel::-webkit-scrollbar-thumb:hover {
+            background: #AB3434;
+        }
+
+        .informame-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #e8eaf0;
+            font-weight: 600;
+            font-size: 1rem;
+            border-bottom: 1px solid #2a2f4a;
+            padding-bottom: 12px;
+            margin-bottom: 15px;
+            font-family: 'Lucida Console', 'Courier New', monospace;
+        }
+        .informame-header button {
+            background: transparent;
+            border: none;
+            color: #8892a8;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: color 0.3s;
+            font-family: 'Lucida Console', 'Courier New', monospace;
+        }
+        .informame-header button:hover {
+            color: #e8eaf0;
+        }
+
+        .informame-body {
+            color: #d4dcec;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            font-family: 'Lucida Console', 'Courier New', monospace;
+        }
+
+        .informame-body .deuda-item-chat {
+            padding: 10px 0 10px 12px;
+            border-left: 2px solid #2a2f4a;
+            margin-bottom: 8px;
+        }
+        .informame-body .deuda-item-chat:last-child {
+            border-left-color: #AB3434;
+        }
+        .informame-body .badge-chat {
+            display: inline-block;
+            background: #2a2f4a;
+            color: #AB3434;
+            padding: 1px 10px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+        .informame-body .entidad-chat {
+            color: #ff6b6b;
+            font-weight: 600;
+        }
+        .informame-body .fecha-chat {
+            color: #8892a8;
+            font-size: 0.85rem;
+        }
+        .informame-body .fecha-chat span {
+            color: #d4dcec;
+        }
+        .informame-body .producto-chat {
+            color: #a8b2d4;
+            font-size: 0.85rem;
+        }
+        .informame-body .producto-chat span {
+            color: #d4dcec;
+        }
+        .informame-body .descripcion-texto {
+            color: #9b81ff;
+            font-size: 0.85rem;
+            margin: 2px 0;
+        }
+
+        .informame-vacio {
+            color: #8892a8;
+            text-align: center;
+            padding: 20px 10px;
+        }
+        .informame-vacio .icono-grande {
+            font-size: 2rem;
+            display: block;
+            margin-bottom: 10px;
+        }
+        .informame-vacio .texto-principal {
+            color: #e8eaf0;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+        .informame-vacio .texto-secundario {
+            font-size: 0.8rem;
+            margin-top: 4px;
+        }
+
+        .informame-footer {
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid #2a2f4a;
+            color: #4a5270;
+            font-size: 0.7rem;
+            text-align: center;
+            font-family: 'Lucida Console', 'Courier New', monospace;
+        }
+
+        /* Botón Informame en resultados */
+        .btn-informame-result {
+            background: #AB3434 !important;
+            border-color: #AB3434 !important;
+        }
+        .btn-informame-result:hover {
+            background: #c93d3d !important;
+            border-color: #c93d3d !important;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 600px) {
+            .informame-panel {
+                right: 10px;
+                width: 92vw;
+                bottom: 80px;
+                padding: 16px;
+                max-height: 400px;
+            }
+        }
+    </style>
 </head>
 <body>
 
@@ -118,10 +285,11 @@
         <div id="resultado" class="resultado"></div>
 
         <footer>
-            <p>© 2026 ACME Labs - Todos los derechos reservados</p>
+            <p>© 2026 FYD ONLINE - Todos los derechos reservados</p>
             <p class="footer-small">🔒 Datos seguros - Procesamos pagos online</p>
         </footer>
     </div>
+
 
     <script src="script.js"></script>
 </body>
