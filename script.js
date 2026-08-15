@@ -1,4 +1,22 @@
 // ============================================
+// FUNCIONES DE PROGRESO PARA EL OVERLAY
+// ============================================
+
+function updateProgress(bar, status, percent, message) {
+    if (bar) {
+        bar.style.width = percent + '%';
+    }
+    if (status) {
+        status.textContent = message;
+    }
+    console.log(`📊 Progreso: ${percent}% - ${message}`);
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ============================================
 // VARIABLES GLOBALES
 // ============================================
 
@@ -150,17 +168,28 @@ async function cargarDescripciones() {
 }
 
 // ============================================
-// CARGAR DEUDAS
+// CARGAR DEUDAS - CON PROGRESO
 // ============================================
 
 async function cargarDatos() {
+    const progressBar = document.getElementById('progressBar');
+    const loadingStatus = document.getElementById('loadingStatus');
+    const overlay = document.getElementById('loadingOverlay');
+    
     try {
+        // Paso 1: Inicio
+        updateProgress(progressBar, loadingStatus, 0, '⏳ Iniciando carga...');
+        await sleep(300);
+        
+        // Paso 2: Cargar deudas
+        updateProgress(progressBar, loadingStatus, 15, '📂 Cargando deudas...');
         const response = await fetch('deudas.csv');
 
         if (!response.ok) {
             throw new Error(`Error al cargar: ${response.status}`);
         }
 
+        updateProgress(progressBar, loadingStatus, 40, '📊 Procesando datos...');
         const csvData = await response.text();
         deudas = csvToJson(csvData);
         datosCargados = true;
@@ -168,12 +197,23 @@ async function cargarDatos() {
         console.log(`✅ ${deudas.length} deudas cargadas correctamente`);
         console.log('📋 Columnas deudas.csv:', Object.keys(deudas[0] || {}));
         
+        // Paso 3: Cargar entidades
+        updateProgress(progressBar, loadingStatus, 60, '🏢 Cargando entidades...');
         await cargarEntidades();
+        
+        // Paso 4: Cargar descripciones
+        updateProgress(progressBar, loadingStatus, 80, '📝 Cargando observaciones...');
         await cargarDescripciones();
         
+        // Paso 5: Finalizar
+        updateProgress(progressBar, loadingStatus, 95, '✅ Preparando interfaz...');
+        await sleep(400);
+        
+        // Ocultar el error si estaba visible
         const errorCarga = document.getElementById('errorCarga');
         if (errorCarga) errorCarga.style.display = 'none';
 
+        // Actualizar fecha
         const lastModified = response.headers.get('Last-Modified');
         let fechaMostrar;
         
@@ -206,8 +246,47 @@ async function cargarDatos() {
         const fechaSpan = document.getElementById('fechaActual');
         if (fechaSpan) fechaSpan.textContent = fechaMostrar;
 
+        // Ocultar overlay con transición
+        updateProgress(progressBar, loadingStatus, 100, '✅ ¡Listo!');
+        await sleep(500);
+        
+        if (overlay) {
+            overlay.classList.add('hidden');
+            setTimeout(() => {
+                overlay.style.display = 'none';
+            }, 800);
+        }
+        
+        console.log('✅ Carga completada exitosamente');
+
     } catch (error) {
         console.error('Error al cargar CSV:', error);
+        
+        // Mostrar error en el overlay
+        if (overlay) {
+            overlay.innerHTML = `
+                <div style="text-align: center; padding: 20px;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">❌</div>
+                    <h2 style="color: #fc8181; font-size: 20px; margin-bottom: 10px;">Error al cargar datos</h2>
+                    <p style="color: #8892a8; font-size: 14px; margin-bottom: 15px;">
+                        Verifica que el archivo <b>deudas.csv</b> esté en el mismo directorio.
+                    </p>
+                    <p style="color: #4a5270; font-size: 12px;">${error.message}</p>
+                    <button onclick="location.reload()" style="
+                        margin-top: 20px;
+                        padding: 12px 30px;
+                        background: #7b61ff;
+                        border: none;
+                        border-radius: 8px;
+                        color: white;
+                        font-weight: 600;
+                        cursor: pointer;
+                    ">🔄 Reintentar</button>
+                </div>
+            `;
+        }
+        
+        // También mostrar en el panel de error
         const errorCarga = document.getElementById('errorCarga');
         if (errorCarga) {
             errorCarga.style.display = 'block';
@@ -1207,6 +1286,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fechaSpan.textContent = fechaGuardada;
     }
 
+    // Iniciar carga de datos (el overlay ya está visible)
     cargarDatos();
     verReportesGuardados();
     
