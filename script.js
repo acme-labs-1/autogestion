@@ -4,6 +4,8 @@
 
 let deudas = [];
 let datosCargados = false;
+let carteraEntidad = {};
+let descripcionProducto = {};
 
 // ============================================
 // FUNCIONES DE AYUDA
@@ -39,7 +41,6 @@ function csvToJson(csv) {
     for (let i = 1; i < lines.length; i++) {
         if (!lines[i].trim()) continue;
 
-        // Dividir por coma pero respetando valores entre comillas
         const values = [];
         let current = '';
         let inQuotes = false;
@@ -59,7 +60,6 @@ function csvToJson(csv) {
         const obj = {};
         headers.forEach((header, index) => {
             let value = values[index] || '';
-            // Limpiar comillas si existen
             if (value.startsWith('"') && value.endsWith('"')) {
                 value = value.slice(1, -1);
             }
@@ -68,6 +68,156 @@ function csvToJson(csv) {
         result.push(obj);
     }
     return result;
+}
+
+// ============================================
+// CARGAR ENTIDADES DESDE entidades.csv
+// ============================================
+
+async function cargarEntidades() {
+    try {
+        const response = await fetch('entidades.csv');
+        if (!response.ok) {
+            console.warn('⚠️ No se pudo cargar entidades.csv');
+            return;
+        }
+        
+        const csvData = await response.text();
+        const entidades = csvToJson(csvData);
+        
+        carteraEntidad = {};
+        entidades.forEach(item => {
+            const cartera = item.cartera || item.Cartera || '';
+            const entidad = item.entidad || item.Entidad || '';
+            if (cartera && entidad) {
+                carteraEntidad[cartera.trim()] = entidad.trim();
+            }
+        });
+        
+        console.log('✅ Entidades cargadas:', Object.keys(carteraEntidad).length);
+    } catch (error) {
+        console.error('Error al cargar entidades:', error);
+    }
+}
+
+// ============================================
+// CARGAR DESCRIPCIONES DESDE descripcion.csv
+// ============================================
+
+async function cargarDescripciones() {
+    try {
+        const response = await fetch('descripcion.csv');
+        if (!response.ok) {
+            console.warn('⚠️ No se pudo cargar descripcion.csv');
+            return;
+        }
+        
+        const csvData = await response.text();
+        console.log('📄 CSV descripcion:', csvData.substring(0, 200));
+        
+        const descripciones = csvToJson(csvData);
+        
+        console.log('📋 Columnas descripcion.csv:', Object.keys(descripciones[0] || {}));
+        
+        descripcionProducto = {};
+        descripciones.forEach(item => {
+            const codigo = item.NumeroProducto || 
+                          item['NumeroProducto'] || 
+                          item.Codigo || 
+                          item.codigo || 
+                          '';
+            
+            const observacion = item.Observaciones || 
+                               item.observaciones || 
+                               item.OBSERVACIONES ||
+                               item.Descripcion || 
+                               item.descripcion || 
+                               '';
+            
+            if (codigo && observacion) {
+                descripcionProducto[codigo.trim()] = observacion.trim();
+                console.log(`✅ Cargado: ${codigo} -> ${observacion.substring(0, 30)}...`);
+            }
+        });
+        
+        console.log('✅ Observaciones cargadas:', Object.keys(descripcionProducto).length);
+        console.log('📋 Primeras 5 claves:', Object.keys(descripcionProducto).slice(0, 5));
+        console.log('📋 Mapeo completo:', descripcionProducto);
+        
+    } catch (error) {
+        console.error('Error al cargar descripciones:', error);
+    }
+}
+
+// ============================================
+// CARGAR DEUDAS
+// ============================================
+
+async function cargarDatos() {
+    try {
+        const response = await fetch('deudas.csv');
+
+        if (!response.ok) {
+            throw new Error(`Error al cargar: ${response.status}`);
+        }
+
+        const csvData = await response.text();
+        deudas = csvToJson(csvData);
+        datosCargados = true;
+
+        console.log(`✅ ${deudas.length} deudas cargadas correctamente`);
+        console.log('📋 Columnas deudas.csv:', Object.keys(deudas[0] || {}));
+        
+        await cargarEntidades();
+        await cargarDescripciones();
+        
+        const errorCarga = document.getElementById('errorCarga');
+        if (errorCarga) errorCarga.style.display = 'none';
+
+        const lastModified = response.headers.get('Last-Modified');
+        let fechaMostrar;
+        
+        if (lastModified) {
+            const fecha = new Date(lastModified);
+            fechaMostrar = fecha.toLocaleDateString('es-AR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } else {
+            const fechaGuardada = localStorage.getItem('fecha_csv');
+            if (fechaGuardada) {
+                fechaMostrar = fechaGuardada;
+            } else {
+                const now = new Date();
+                fechaMostrar = now.toLocaleDateString('es-AR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+        }
+        
+        localStorage.setItem('fecha_csv', fechaMostrar);
+        const fechaSpan = document.getElementById('fechaActual');
+        if (fechaSpan) fechaSpan.textContent = fechaMostrar;
+
+    } catch (error) {
+        console.error('Error al cargar CSV:', error);
+        const errorCarga = document.getElementById('errorCarga');
+        if (errorCarga) {
+            errorCarga.style.display = 'block';
+            errorCarga.innerHTML = `
+                ❌ No se pudo cargar el archivo de deudas.<br>
+                Verifica que el archivo <b>deudas.csv</b> esté en el mismo directorio.<br>
+                <small style="color: #fc8181;">${error.message}</small>
+            `;
+        }
+    }
 }
 
 // ============================================
@@ -100,7 +250,7 @@ function guardarReporteLocal(datos) {
 }
 
 // ============================================
-// ENVIAR REPORTE AL VPS CON COMPROBANTE - VERSION ORIGINAL MEJORADA
+// ENVIAR REPORTE AL VPS CON COMPROBANTE
 // ============================================
 
 async function enviarReporte() {
@@ -126,9 +276,8 @@ async function enviarReporte() {
     formData.append('monto', monto);
     formData.append('whatsapp', whatsapp || 'No proporcionado');
     
-    // Verificar tamaño del archivo
     if (archivoInput.files && archivoInput.files[0]) {
-        const fileSize = archivoInput.files[0].size / 1024 / 1024; // en MB
+        const fileSize = archivoInput.files[0].size / 1024 / 1024;
         if (fileSize > 5) {
             alert('⚠️ El archivo es muy grande (' + fileSize.toFixed(1) + 'MB). Máximo permitido: 5MB');
             statusDiv.style.display = 'none';
@@ -146,7 +295,6 @@ async function enviarReporte() {
     guardarReporteLocal(datosReporte);
 
     try {
-        // Timeout de 60 segundos para el fetch
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 60000);
 
@@ -158,7 +306,6 @@ async function enviarReporte() {
 
         clearTimeout(timeoutId);
 
-        // Verificar que la respuesta sea JSON
         const text = await response.text();
         let resultado;
         try {
@@ -175,7 +322,6 @@ async function enviarReporte() {
             alert(
                 `✅ ¡Reporte enviado!\n\nDNI: ${dni}\nNombre: ${nombre}\nMonto: $${parseFloat(monto).toLocaleString('es-AR')}\nWhatsApp: ${whatsapp || 'No proporcionado'}\n\n⏳ Tu pago será procesado a la brevedad.`);
 
-            // Limpiar campos
             document.getElementById('reporteNombre').value = '';
             document.getElementById('reporteMonto').value = '';
             document.getElementById('reporteWhatsApp').value = '';
@@ -189,7 +335,6 @@ async function enviarReporte() {
     } catch (error) {
         console.error('Error:', error);
         
-        // Si es error de abort, mostrar mensaje de tiempo
         if (error.name === 'AbortError') {
             statusDiv.innerHTML = '⏳ El servidor está tardando en responder. El reporte se guardó localmente.';
             statusDiv.style.color = '#f6ad55';
@@ -204,7 +349,6 @@ async function enviarReporte() {
             statusDiv.innerHTML = `❌ Error: ${error.message}`;
             statusDiv.style.color = '#fc8181';
             
-            // Ofrecer intentar sin comprobante
             if (archivoInput.files && archivoInput.files[0]) {
                 const reintentar = confirm(
                     `❌ Error al enviar con comprobante.\n\n` +
@@ -213,10 +357,8 @@ async function enviarReporte() {
                     `(Los datos de pago se guardarán igual)`
                 );
                 if (reintentar) {
-                    // Limpiar el archivo y reintentar
                     archivoInput.value = '';
                     document.getElementById('previewImage').style.display = 'none';
-                    // Llamar de nuevo pero sin archivo
                     await enviarReporte();
                     return;
                 }
@@ -237,7 +379,6 @@ function actualizarReporteLocal(dni, estado) {
         if (!stored) return;
         
         let reportes = JSON.parse(stored);
-        // Buscar el último reporte con ese DNI y actualizarlo
         for (let i = reportes.length - 1; i >= 0; i--) {
             if (reportes[i].dni === dni) {
                 reportes[i].estado = estado;
@@ -329,7 +470,6 @@ async function reenviarReportesPendientes() {
                 console.error(`❌ Error al reenviar reporte de ${reporte.nombre}:`, error);
             }
             
-            // Pequeña pausa entre envíos
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
         
@@ -342,70 +482,102 @@ async function reenviarReportesPendientes() {
 }
 
 // ============================================
-// CARGAR CSV
+// ABRIR WHATSAPP (dentro del panel)
 // ============================================
 
-async function cargarDatos() {
-    try {
-        const response = await fetch('deudas.csv');
+function abrirWhatsApp() {
+    const resultado = document.getElementById('resultado');
+    const dni = resultado.dataset.dni || document.getElementById('dniInput').value.trim();
+    const nombre = resultado.querySelector('.deudor')?.textContent?.replace('👤', '').trim() || 'Cliente';
+    const mensaje = `Hola, soy ${nombre} (DNI: ${dni}). Necesito ayuda con mi deuda.`;
+    const url = `https://wa.me/5491123456789?text=${encodeURIComponent(mensaje)}`;
+    
+    resultado.innerHTML = `
+        <div style="text-align:center;padding:20px;">
+            <h3 style="color:#25D366;">📱 WhatsApp</h3>
+            <p style="color:#8892a8;margin:15px 0;">Serás redirigido a WhatsApp para hablar con nuestro equipo de atención.</p>
+            <div style="background:#1a1f35;padding:15px;border-radius:8px;margin:15px 0;">
+                <p style="color:#e8eaf0;font-size:14px;">📌 Mensaje predefinido:</p>
+                <p style="color:#8892a8;font-size:13px;font-style:italic;">"${mensaje}"</p>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+                <button class="btn-pago" onclick="window.open('${url}', '_blank')" style="background:#25D366;border-color:#25D366;color:white;display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;">
+                    <img src="assets/154860_b.png" alt="WhatsApp" style="width:24px;height:24px;">
+                    <span style="font-size:16px;">WhatsApp</span>
 
-        if (!response.ok) {
-            throw new Error(`Error al cargar: ${response.status}`);
-        }
-
-        const csvData = await response.text();
-        deudas = csvToJson(csvData);
-        datosCargados = true;
-
-        console.log(`✅ ${deudas.length} deudas cargadas correctamente`);
-        console.log('📋 Primer registro:', deudas[0]); // Para debug
-        
-        document.getElementById('errorCarga').style.display = 'none';
-
-        const lastModified = response.headers.get('Last-Modified');
-        let fechaMostrar;
-        
-        if (lastModified) {
-            const fecha = new Date(lastModified);
-            fechaMostrar = fecha.toLocaleDateString('es-AR', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        } else {
-            const fechaGuardada = localStorage.getItem('fecha_csv');
-            if (fechaGuardada) {
-                fechaMostrar = fechaGuardada;
-            } else {
-                const now = new Date();
-                fechaMostrar = now.toLocaleDateString('es-AR', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-            }
-        }
-        
-        localStorage.setItem('fecha_csv', fechaMostrar);
-        document.getElementById('fechaActual').textContent = fechaMostrar;
-
-    } catch (error) {
-        console.error('Error al cargar CSV:', error);
-        document.getElementById('errorCarga').style.display = 'block';
-        document.getElementById('errorCarga').innerHTML = `
-                    ❌ No se pudo cargar el archivo de deudas.<br>
-                    Verifica que el archivo <b>deudas.csv</b> esté en el mismo directorio.<br>
-                    <small style="color: #fc8181;">${error.message}</small>
-                `;
-    }
+                </button>
+                <button class="btn-cancelar-pago" onclick="consultar()">❌ Volver</button>
+            </div>
+        </div>
+    `;
+    resultado.style.display = 'block';
 }
 
 // ============================================
-// CONSULTAR - CON TOTAL POR CÓDIGO DE PAGO INTEGRADO
+// ABRIR TELEGRAM (dentro del panel)
+// ============================================
+
+function abrirTelegram() {
+    const resultado = document.getElementById('resultado');
+    const dni = resultado.dataset.dni || document.getElementById('dniInput').value.trim();
+    const nombre = resultado.querySelector('.deudor')?.textContent?.replace('👤', '').trim() || 'Cliente';
+    const mensaje = `Hola, soy ${nombre} (DNI: ${dni}). Necesito ayuda con mi deuda.`;
+    const url = `https://t.me/fydonline?start=${dni}&text=${encodeURIComponent(mensaje)}`;
+    
+    resultado.innerHTML = `
+        <div style="text-align:center;padding:20px;">
+            <h3 style="color:#0088cc;">✈️ Telegram</h3>
+            <p style="color:#8892a8;margin:15px 0;">Serás redirigido a Telegram para hablar con nuestro equipo de atención.</p>
+            <div style="background:#1a1f35;padding:15px;border-radius:8px;margin:15px 0;">
+                <p style="color:#e8eaf0;font-size:14px;">📌 Mensaje predefinido:</p>
+                <p style="color:#8892a8;font-size:13px;font-style:italic;">"${mensaje}"</p>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+                <button class="btn-pago" onclick="window.open('${url}', '_blank')" style="background:#0088cc;border-color:#0088cc;color:white;display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;">
+                    <img src="assets/154500.png" alt="Telegram" style="width:24px;height:24px;">
+                    <span style="font-size:16px;">Telegram</span>
+
+                </button>
+                <button class="btn-cancelar-pago" onclick="consultar()">❌ Volver</button>
+            </div>
+        </div>
+    `;
+    resultado.style.display = 'block';
+}
+
+// ============================================
+// HABLA CON NOSOTROS - MENÚ CON OPCIONES
+// ============================================
+
+function hablaConNosotros() {
+    const resultado = document.getElementById('resultado');
+    const dni = resultado.dataset.dni || document.getElementById('dniInput').value.trim();
+    const nombre = resultado.querySelector('.deudor')?.textContent?.replace('👤', '').trim() || 'Cliente';
+    
+    resultado.innerHTML = `
+        <div style="text-align:center;padding:20px;">
+            <h3 style="color:#9b1c2e;">💬 Habla con nosotros</h3>
+            <p style="color:#8892a8;margin:15px 0;">Elegí tu canal de comunicación preferido:</p>
+            
+            <div style="display:flex;flex-direction:column;gap:12px;max-width:300px;margin:0 auto;">
+                <button class="btn-pago" onclick="abrirWhatsApp()" style="background:#25D366;border-color:#25D366;color:white;display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;">
+                    <img src="assets/154860_b.png" alt="WhatsApp" style="width:24px;height:24px;">
+                    <span style="font-size:16px;">WhatsApp</span>
+                </button>
+                <button class="btn-pago" onclick="abrirTelegram()" style="background:#0088cc;border-color:#0088cc;color:white;display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;">
+                    <img src="assets/154500.png" alt="Telegram" style="width:24px;height:24px;">
+                    <span style="font-size:16px;">Telegram</span>
+                </button>
+                <button class="btn-cancelar-pago" onclick="consultar()" style="margin-top:10px;">❌ Volver</button>
+            </div>
+        </div>
+    `;
+    resultado.style.display = 'block';
+}
+
+// ============================================
+// CONSULTAR - VISTA RÁPIDA PARA PAGAR
+// Agrupa por CÓDIGO DE PAGO - Enfoque en acción
 // ============================================
 
 function consultar() {
@@ -415,28 +587,26 @@ function consultar() {
 
     const dni = dniInput.value.trim();
 
-    // Validar DNI
     if (!dni || dni.length < 7 || dni.length > 8 || !/^\d+$/.test(dni)) {
         resultado.innerHTML = `
-                    <div class="no-encontrado">
-                        <div class="icono">❌</div>
-                        <div class="mensaje">DNI inválido</div>
-                        <div class="detalle">Debe tener 7 u 8 dígitos numéricos</div>
-                    </div>
-                `;
+            <div class="no-encontrado">
+                <div class="icono">❌</div>
+                <div class="mensaje">DNI inválido</div>
+                <div class="detalle">Debe tener 7 u 8 dígitos numéricos</div>
+            </div>
+        `;
         resultado.style.display = 'block';
         return;
     }
 
-    // Verificar que los datos estén cargados
     if (!datosCargados || deudas.length === 0) {
         resultado.innerHTML = `
-                    <div class="no-encontrado">
-                        <div class="icono">⏳</div>
-                        <div class="mensaje">Cargando datos...</div>
-                        <div class="detalle">Por favor, espera un momento</div>
-                    </div>
-                `;
+            <div class="no-encontrado">
+                <div class="icono">⏳</div>
+                <div class="mensaje">Cargando datos...</div>
+                <div class="detalle">Por favor, espera un momento</div>
+            </div>
+        `;
         resultado.style.display = 'block';
         cargarDatos();
         return;
@@ -446,34 +616,40 @@ function consultar() {
     resultado.style.display = 'none';
 
     setTimeout(() => {
-        // BUSCAR POR DNI
         const encontrados = deudas.filter(d => String(d.DNI).trim() === dni);
         
         loading.style.display = 'none';
 
         if (encontrados.length === 0) {
             resultado.innerHTML = `
-                        <div class="no-encontrado">
-                            <div class="icono">✅</div>
-                            <div class="mensaje">No se encontraron deudas</div>
-                            <div class="detalle">Para el DNI: ${dni}</div>
-                            <div style="margin-top: 15px; color: #4a5270; font-size: 13px;">
-                                Si crees que esto es un error, contacta a soporte
-                            </div>
-                        </div>
-                    `;
+                <div class="no-encontrado">
+                    <div class="icono">✅</div>
+                    <div class="mensaje">No se encontraron deudas</div>
+                    <div class="detalle">Para el DNI: ${dni}</div>
+                    <div style="margin-top: 15px; color: #4a5270; font-size: 13px;">
+                        Si crees que esto es un error, contacta a soporte
+                    </div>
+                </div>
+            `;
             resultado.style.display = 'block';
             return;
         }
 
         let totalGeneral = 0;
         let html = `
-                    <div class="deudor">👤 ${encontrados[0].Nombre || 'Sin nombre'}</div>
-                    <div class="dni">📜 DNI: ${dni}</div>
-                    <hr style="border: none; border-top: 1px solid #2a2f4a; margin: 10px 0;">
-                `;
+            <div style="margin-bottom:10px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span class="deudor" style="font-size:1.1rem;">👤 ${encontrados[0].Nombre || 'Sin nombre'}</span>
+                    <span class="dni" style="font-size:0.9rem;">📜 DNI: ${dni}</span>
+                </div>
+                <hr style="border: none; border-top: 1px solid #2a2f4a; margin: 8px 0;">
+                <div style="text-align:center;color:#7b61ff;font-weight:bold;font-size:13px;margin-bottom:5px;">
+                    📋 RESUMEN POR CÓDIGO DE PAGO
+                </div>
+            </div>
+        `;
 
-        // PRIMERO: Agrupar por CÓDIGO DE PAGO
+        // Agrupar por Código de pago
         const codigos = {};
         encontrados.forEach(d => {
             const codigo = d.Codigo || 'Sin código';
@@ -486,12 +662,10 @@ function consultar() {
             codigos[codigo].items.push(d);
         });
 
-        // Mostrar por cada código de pago
         Object.keys(codigos).forEach(codigo => {
             const grupo = codigos[codigo];
             let totalCodigo = 0;
             
-            // Calcular total del código
             grupo.items.forEach(d => {
                 let montoStr = String(d.Deuda || '0').replace(/[.,]/g, '').trim();
                 const monto = parseFloat(montoStr) || 0;
@@ -499,120 +673,224 @@ function consultar() {
                 totalGeneral += monto;
             });
             
-            // Mostrar encabezado del código
             html += `
-                        <div style="background: #1a1f35; padding: 10px 12px; border-radius: 8px; margin: 10px 0; border-left: 3px solid #7b61ff;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                <span style="color: #7b61ff; font-weight: bold; font-size: 14px;">
-                                    📋 Código de pago: ${codigo}
-                                </span>
-                                <span style="color: #48bb78; font-weight: bold; font-size: 14px;">
-                                    Subtotal: $${totalCodigo.toLocaleString('es-AR')}
-                                </span>
-                            </div>
-                    `;
+                <div style="background: #1a1f35; padding: 10px 12px; border-radius: 8px; margin: 8px 0; border-left: 3px solid #7b61ff;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span style="color: #7b61ff; font-weight: bold; font-size: 14px;">
+                            📋 ${codigo}
+                        </span>
+                        <span style="color: #48bb78; font-weight: bold; font-size: 14px;">
+                            $${totalCodigo.toLocaleString('es-AR')}
+                        </span>
+                    </div>
+            `;
             
-            // Agrupar por cartera dentro del código
+            // Mostrar entidades de forma compacta
             const carteras = {};
             grupo.items.forEach(d => {
                 const cartera = d.Cartera || 'Sin cartera';
                 if (!carteras[cartera]) {
-                    carteras[cartera] = [];
+                    carteras[cartera] = 0;
                 }
-                carteras[cartera].push(d);
+                let montoStr = String(d.Deuda || '0').replace(/[.,]/g, '').trim();
+                carteras[cartera] += parseFloat(montoStr) || 0;
             });
             
-            // Mostrar deudas por cartera
             Object.keys(carteras).forEach(cartera => {
-                html += `<div style="margin: 5px 0 5px 10px;">`;
-                html += `<div style="color: #8892a8; font-size: 12px; margin-bottom: 3px;">🏢 ${cartera}</div>`;
-                
-                carteras[cartera].forEach(d => {
-                    let montoStr = String(d.Deuda || '0').replace(/[.,]/g, '').trim();
-                    const monto = parseFloat(montoStr) || 0;
-                    
-                    html += `
-                                <div class="deuda-item" style="padding: 4px 8px; margin-left: 10px;">
-                                    <span class="entidad" style="font-size: 13px;">📌 ${d.Producto || 'N/A'}</span>
-                                    <span class="monto" style="font-size: 13px;">$${monto.toLocaleString('es-AR')}</span>
-                                </div>
-                            `;
-                });
-                html += `</div>`;
+                const entidad = carteraEntidad[cartera] || cartera;
+                html += `
+                    <div style="display:flex;justify-content:space-between;padding:2px 8px;margin-left:5px;font-size:12px;">
+                        <span style="color:#8892a8;">🏢 ${entidad}</span>
+                        <span style="color:#48bb78;">$${carteras[cartera].toLocaleString('es-AR')}</span>
+                    </div>
+                `;
             });
             
             html += `</div>`;
         });
 
-        // Agregar fecha de mora si existe
-        const fechaMora = encontrados.find(d => d.Fecha && d.Fecha !== '');
-        if (fechaMora) {
-            html += `
-                        <div style="background: #2a1f3d; padding: 8px 12px; border-radius: 6px; margin: 10px 0; font-size: 13px; color: #fc8181;">
-                            ⚠️ Fecha de mora: ${fechaMora.Fecha}
-                        </div>
-                    `;
-        }
-
-        // TOTAL GENERAL
         html += `
-                    <div class="total" style="margin-top: 15px; padding: 12px; background: #1a1f35; border-radius: 8px; border: 2px solid #7b61ff;">
-                        💰 Deuda total: <span style="color: #48bb78; font-size: 20px;">$${totalGeneral.toLocaleString('es-AR')}</span>
-                    </div>
-                    
-                    <div style="margin-top: 15px; background: #1a1f35; border-radius: 8px; border: 1px solid #2a2f4a; overflow: hidden;">
-                        <div style="background: #2a1f3d; padding: 8px 12px; border-bottom: 1px solid #2a2f4a;">
-                            <span style="color: #7b61ff; font-weight: bold; font-size: 13px;">📊 Resumen por código de pago</span>
-                        </div>
-                        <div style="padding: 8px 12px;">
-                    `;
-        
-        // Mostrar resumen de códigos con el mismo estilo que la lista
-        Object.keys(codigos).forEach((codigo, index) => {
-            const totalCodigo = codigos[codigo].items.reduce((sum, d) => {
-                let montoStr = String(d.Deuda || '0').replace(/[.,]/g, '').trim();
-                return sum + (parseFloat(montoStr) || 0);
-            }, 0);
+            <div class="total" style="margin-top:12px;padding:12px;background:#1a1f35;border-radius:8px;border:2px solid #7b61ff;text-align:center;">
+                💰 <span style="color:#48bb78;font-size:20px;font-weight:bold;">$${totalGeneral.toLocaleString('es-AR')}</span>
+            </div>
             
-            // Alternar colores de fondo para mejor legibilidad
-            const bgColor = index % 2 === 0 ? '#1a1f35' : '#1e2340';
-            
-            html += `
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: ${bgColor}; border-radius: 4px; margin: 2px 0;">
-                            <span style="color: #8892a8; font-size: 13px;">
-                                📋 ${codigo}
-                            </span>
-                            <span style="color: #48bb78; font-weight: bold; font-size: 14px;">
-                                $${totalCodigo.toLocaleString('es-AR')}
-                            </span>
-                        </div>
-                    `;
-        });
-        
-        html += `
-                        </div>
-                    </div>
-                    
-                    <div class="botones-pago">
-                        <button class="btn-pago btn-mp" onclick="pagar('mp', ${totalGeneral})">
-                            💳 Mercado Pago
-                        </button>
-                        <button class="btn-pago btn-transferencia" onclick="pagar('transferencia', ${totalGeneral})">
-                            🏦 Transferencia
-                        </button>
-                    </div>
-                    <div style="text-align:center; margin-top: 10px;">
-                        <button class="btn-pago btn-reportar" onclick="reportarPago()" style="width:100%; padding: 10px;">
-                            📢 ¿Ya pagaste? Reporta tu pago
-                        </button>
-                    </div>
-                `;
+            <div class="botones-pago" style="margin-top:12px;">
+                <button class="btn-pago btn-informame" onclick="informame()" style="background:#AB3434;border-color:#AB3434;color:white;flex:1;">
+                    📋 Ver detalle
+                </button>
+                <button class="btn-pago btn-mp" onclick="pagar('mp', ${totalGeneral})" style="flex:1;">
+                    💳 Mercado Pago
+                </button>
+                <button class="btn-pago btn-transferencia" onclick="pagar('transferencia', ${totalGeneral})" style="flex:1;">
+                    🏦 Banco
+                </button>
+            </div>
+            <div style="text-align:center;margin-top:8px;">
+                <button class="btn-pago btn-reportar" onclick="reportarPago()" style="width:100%;padding:10px;">
+                    📢 ¿Ya pagaste? Reporta tu pago
+                </button>
+            </div>
+            <div style="margin-top:8px;">
+                <button class="btn-pago" onclick="hablaConNosotros()" style="width:100%;background:#9b1c2e;border-color:#9b1c2e;color:white;padding:12px;font-size:16px;">
+                    💬 Habla con nosotros
+                </button>
+            </div>
+        `;
 
         resultado.innerHTML = html;
         resultado.style.display = 'block';
         resultado.dataset.dni = dni;
 
     }, 400);
+}
+
+// ============================================
+// INFORMAME - VISTA DETALLADA PARA ENTENDER
+// Agrupa por PRODUCTO - Enfoque en información
+// ============================================
+
+function informame() {
+    const resultado = document.getElementById('resultado');
+    const dni = resultado.dataset.dni || document.getElementById('dniInput').value.trim();
+    
+    if (!dni) {
+        alert('⚠️ Primero debes consultar un DNI');
+        return;
+    }
+    
+    const encontrados = deudas.filter(d => String(d.DNI).trim() === dni);
+    
+    if (!encontrados || encontrados.length === 0) {
+        resultado.innerHTML = `
+            <div class="no-encontrado">
+                <div class="icono">✅</div>
+                <div class="mensaje">Sin deudas para el DNI</div>
+                <div class="detalle">${dni} no presenta deudas registradas</div>
+                <button class="btn-cancelar-pago" onclick="consultar()" style="margin-top:15px;">❌ Volver</button>
+            </div>
+        `;
+        resultado.style.display = 'block';
+        return;
+    }
+
+    // Agrupar por Producto (más informativo)
+    const productos = {};
+    encontrados.forEach(d => {
+        const producto = d.Producto || d.producto || 'Sin producto';
+        if (!productos[producto]) {
+            productos[producto] = [];
+        }
+        productos[producto].push(d);
+    });
+
+    let totalGeneral = 0;
+    let html = `
+        <div style="margin-bottom:15px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+                <span class="deudor" style="font-size:1.1rem;">👤 ${encontrados[0].Nombre || 'Sin nombre'}</span>
+                <span class="dni" style="font-size:0.9rem;">📜 DNI: ${dni}</span>
+            </div>
+            <hr style="border: none; border-top: 1px solid #2a2f4a; margin: 5px 0 10px 0;">
+            <div style="text-align:center;color:#AB3434;font-weight:bold;font-size:15px;margin-bottom:10px;">
+                📋 INFORME DETALLADO POR PRODUCTO
+            </div>
+            <div style="text-align:center;color:#8892a8;font-size:12px;margin-bottom:8px;">
+                🔍 Cada deuda individual con su entidad, fecha y observación
+            </div>
+        </div>
+    `;
+
+    Object.keys(productos).forEach(producto => {
+        const items = productos[producto];
+        let totalProducto = 0;
+        
+        items.forEach(d => {
+            let montoStr = String(d.Deuda || '0').replace(/[.,]/g, '').trim();
+            const monto = parseFloat(montoStr) || 0;
+            totalProducto += monto;
+            totalGeneral += monto;
+        });
+
+        // Buscar observación usando Producto como clave
+        const observacion = descripcionProducto[producto] || '';
+
+        html += `
+            <div style="background: #1a1f35; padding: 12px; border-radius: 8px; margin: 10px 0; border-left: 3px solid #AB3434;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="color: #AB3434; font-weight: bold; font-size: 14px;">
+                        📦 ${producto}
+                    </span>
+                    <span style="color: #48bb78; font-weight: bold; font-size: 14px;">
+                        Subtotal: $${totalProducto.toLocaleString('es-AR')}
+                    </span>
+                </div>
+                ${observacion ? `
+                    <div style="color: #9b81ff; font-size: 13px; margin-bottom: 8px; padding: 8px; background: #151928; border-radius: 4px; border-left: 2px solid #7b61ff;">
+                        📝 ${observacion}
+                    </div>
+                ` : ''}
+        `;
+
+        items.forEach(d => {
+            const cartera = d.Cartera || d.cartera || 'Sin cartera';
+            const entidad = carteraEntidad[cartera] || cartera || 'Entidad no especificada';
+            const fecha = d['Fecha de Mora'] || d.FechaMora || d['FechaMora'] || d.Fecha || d.fecha || 'Fecha no disponible';
+            
+            const descripcionProducto = d['Descripcion Producto'] || 
+                                       d.DescripcionProducto || 
+                                       d['DescripcionProducto'] || 
+                                       d.Descripcion || 
+                                       d.descripcion || 
+                                       'Producto no disponible';
+            
+            let montoStr = String(d.Deuda || '0').replace(/[.,]/g, '').trim();
+            const monto = parseFloat(montoStr) || 0;
+
+            html += `
+                <div style="padding: 8px 10px; margin: 4px 0 4px 10px; background: #151928; border-radius: 4px; border-left: 2px solid #2a2f4a;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <span style="color:#d4dcec;font-size:0.85rem;">🏢 ${entidad}</span>
+                        <span style="color:#48bb78;font-weight:bold;font-size:0.95rem;">$${monto.toLocaleString('es-AR')}</span>
+                    </div>
+                    <div style="color:#8892a8;font-size:0.8rem;margin-top:3px;">
+                        📅 ${fecha}
+                    </div>
+                    <div style="color:#a8b2d4;font-size:0.8rem;margin-top:2px;">
+                        📌 ${descripcionProducto}
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `</div>`;
+    });
+
+    html += `
+        <div style="margin-top:15px;padding:15px;background:#2a1f3d;border-radius:8px;border:2px solid #AB3434;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="color:#e8eaf0;font-weight:bold;font-size:1.1rem;">💰 Deuda total</span>
+                <span style="color:#48bb78;font-weight:bold;font-size:1.3rem;">$${totalGeneral.toLocaleString('es-AR')}</span>
+            </div>
+        </div>
+        
+        <div style="margin-top:15px;display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn-pago" onclick="consultar()" style="flex:1;background:#7b61ff;border-color:#7b61ff;color:white;min-width:120px;">
+                🔙 Volver al resumen
+            </button>
+            <button class="btn-pago btn-reportar" onclick="reportarPago()" style="flex:1;min-width:120px;">
+                📢 Reportar pago
+            </button>
+        </div>
+        <div style="margin-top:8px;">
+            <button class="btn-pago" onclick="hablaConNosotros()" style="width:100%;background:#9b1c2e;border-color:#9b1c2e;color:white;padding:12px;font-size:16px;">
+                💬 Habla con nosotros
+            </button>
+        </div>
+    `;
+
+    resultado.innerHTML = html;
+    resultado.style.display = 'block';
+    resultado.dataset.dni = dni;
 }
 
 // ============================================
@@ -624,7 +902,6 @@ function pagar(metodo, total) {
     const dni = resultado.dataset.dni || document.getElementById('dniInput').value.trim();
     const totalFormateado = total.toLocaleString('es-AR');
     
-    // Obtener los códigos de pago del DNI consultado
     const encontrados = deudas.filter(d => String(d.DNI).trim() === dni);
     const codigos = {};
     encontrados.forEach(d => {
@@ -636,76 +913,88 @@ function pagar(metodo, total) {
         codigos[codigo] += parseFloat(montoStr) || 0;
     });
     
-    // Generar resumen de códigos para mostrar
     let resumenCodigos = '';
+    let idx = 0;
     Object.keys(codigos).forEach(codigo => {
+        const bgColor = idx % 2 === 0 ? '#1a1f35' : '#1e2340';
         resumenCodigos += `
-                    <div style="display: flex; justify-content: space-between; padding: 4px 8px; background: #1a1f35; border-radius: 4px; margin: 2px 0;">
-                        <span style="color: #8892a8; font-size: 13px;">📋 ${codigo}</span>
-                        <span style="color: #48bb78; font-weight: bold; font-size: 13px;">$${codigos[codigo].toLocaleString('es-AR')}</span>
-                    </div>
-                `;
+            <div style="display: flex; justify-content: space-between; padding: 4px 8px; background: ${bgColor}; border-radius: 4px; margin: 2px 0;">
+                <span style="color: #8892a8; font-size: 13px;">📋 ${codigo}</span>
+                <span style="color: #48bb78; font-weight: bold; font-size: 13px;">$${codigos[codigo].toLocaleString('es-AR')}</span>
+            </div>
+        `;
+        idx++;
     });
 
     let html = '';
 
     if (metodo === 'mp') {
         html = `
-                    <h3 style="text-align:center; color: #e8eaf0;">💳 Mercado Pago</h3>
-                    
-                    <div style="background: #1a1f35; padding: 12px; border-radius: 8px; margin: 10px 0;">
-                        <div style="color: #8892a8; font-size: 13px; margin-bottom: 8px; text-align: center;">
-                            📊 Desglose por código de pago
-                        </div>
-                        ${resumenCodigos}
-                        <div style="border-top: 1px solid #2a2f4a; margin: 8px 0; padding-top: 8px;">
-                            <div style="display: flex; justify-content: space-between; font-weight: bold;">
-                                <span style="color: #e8eaf0;">Total</span>
-                                <span style="color: #48bb78;">$${totalFormateado}</span>
-                            </div>
-                        </div>
+            <h3 style="text-align:center; color: #e8eaf0;">💳 Mercado Pago</h3>
+            
+            <div style="background: #1a1f35; padding: 12px; border-radius: 8px; margin: 10px 0;">
+                <div style="color: #8892a8; font-size: 13px; margin-bottom: 8px; text-align: center;">
+                    📊 Desglose por código de pago
+                </div>
+                ${resumenCodigos}
+                <div style="border-top: 1px solid #2a2f4a; margin: 8px 0; padding-top: 8px;">
+                    <div style="display: flex; justify-content: space-between; font-weight: bold;">
+                        <span style="color: #e8eaf0;">Total a pagar</span>
+                        <span style="color: #48bb78;">$${totalFormateado}</span>
                     </div>
-                    
-                    <div class="datos-pago">
-                        <p><b>CVU:</b> <code>0000003100064272868986</code></p>
-                        <p><b>Alias:</b> <code>LUNA.FUTBOL.VELA</code></p>
-                        <p><b>Titular:</b> FYD ONLINE SA</p>
-                    </div>
-                    <p class="monto-exacto">Monto exacto: $${totalFormateado}</p>
-                    <div style="display:flex; flex-direction:column; gap:8px;">
-                        <button class="btn-pago btn-reportar" onclick="reportarPago()">✅ Ya pagué, reportar</button>
-                        <button class="btn-cancelar-pago" onclick="consultar()">❌ Volver</button>
-                    </div>
-                `;
+                </div>
+            </div>
+            
+            <div class="datos-pago">
+                <p><b>CVU:</b> <code>0000003100064272868986</code></p>
+                <p><b>Alias:</b> <code>LUNA.FUTBOL.VELA</code></p>
+                <p><b>Titular:</b> FYD ONLINE SA</p>
+            </div>
+            <p class="monto-exacto">💰 Total a pagar: $${totalFormateado}</p>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <button class="btn-pago btn-reportar" onclick="reportarPago()">✅ Ya pagué, reportar</button>
+                <button class="btn-cancelar-pago" onclick="consultar()">❌ Volver</button>
+            </div>
+            <div style="margin-top:8px;">
+                <button class="btn-pago" onclick="hablaConNosotros()" style="width:100%;background:#9b1c2e;border-color:#9b1c2e;color:white;padding:12px;font-size:16px;">
+                    💬 Habla con nosotros
+                </button>
+            </div>
+        `;
     } else {
         html = `
-                    <h3 style="text-align:center; color: #e8eaf0;">🏦 Transferencia Bancaria</h3>
-                    
-                    <div style="background: #1a1f35; padding: 12px; border-radius: 8px; margin: 10px 0;">
-                        <div style="color: #8892a8; font-size: 13px; margin-bottom: 8px; text-align: center;">
-                            📊 Desglose por código de pago
-                        </div>
-                        ${resumenCodigos}
-                        <div style="border-top: 1px solid #2a2f4a; margin: 8px 0; padding-top: 8px;">
-                            <div style="display: flex; justify-content: space-between; font-weight: bold;">
-                                <span style="color: #e8eaf0;">Total</span>
-                                <span style="color: #48bb78;">$${totalFormateado}</span>
-                            </div>
-                        </div>
+            <h3 style="text-align:center; color: #e8eaf0;">🏦 Transferencia Bancaria</h3>
+            
+            <div style="background: #1a1f35; padding: 12px; border-radius: 8px; margin: 10px 0;">
+                <div style="color: #8892a8; font-size: 13px; margin-bottom: 8px; text-align: center;">
+                    📊 Desglose por código de pago
+                </div>
+                ${resumenCodigos}
+                <div style="border-top: 1px solid #2a2f4a; margin: 8px 0; padding-top: 8px;">
+                    <div style="display: flex; justify-content: space-between; font-weight: bold;">
+                        <span style="color: #e8eaf0;">Total a pagar</span>
+                        <span style="color: #48bb78;">$${totalFormateado}</span>
                     </div>
-                    
-                    <div class="datos-pago">
-                        <p><b>CBU:</b> <code>0000003100064272868986</code></p>
-                        <p><b>Alias:</b> <code>CACA.APESTA.FEO</code></p>
-                        <p><b>Banco:</b> Banco X</p>
-                        <p><b>Titular:</b> FYD ONLINE SA</p>
-                    </div>
-                    <p class="monto-exacto">Monto exacto: $${totalFormateado}</p>
-                    <div style="display:flex; flex-direction:column; gap:8px;">
-                        <button class="btn-pago btn-reportar" onclick="reportarPago()">✅ Ya pagué, reportar</button>
-                        <button class="btn-cancelar-pago" onclick="consultar()">❌ Volver</button>
-                    </div>
-                `;
+                </div>
+            </div>
+            
+            <div class="datos-pago">
+                <p><b>CBU:</b> <code>0000003100064272868986</code></p>
+                <p><b>Alias:</b> <code>CACA.APESTA.FEO</code></p>
+                <p><b>Banco:</b> Banco X</p>
+                <p><b>Titular:</b> FYD ONLINE SA</p>
+            </div>
+            <p class="monto-exacto">💰 Total a pagar: $${totalFormateado}</p>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <button class="btn-pago btn-reportar" onclick="reportarPago()">✅ Ya pagué, reportar</button>
+                <button class="btn-cancelar-pago" onclick="consultar()">❌ Volver</button>
+            </div>
+            <div style="margin-top:8px;">
+                <button class="btn-pago" onclick="hablaConNosotros()" style="width:100%;background:#9b1c2e;border-color:#9b1c2e;color:white;padding:12px;font-size:16px;">
+                    💬 Habla con nosotros
+                </button>
+            </div>
+        `;
     }
 
     resultado.innerHTML = html;
@@ -720,8 +1009,9 @@ function reportarPago() {
     const resultado = document.getElementById('resultado');
     const dni = resultado.dataset.dni || document.getElementById('dniInput').value.trim();
     
-    // Obtener los códigos de pago y totales para mostrar en el formulario
     const encontrados = deudas.filter(d => String(d.DNI).trim() === dni);
+    const nombre = encontrados.length > 0 ? (encontrados[0].Nombre || '') : '';
+    
     const codigos = {};
     let totalGeneral = 0;
     
@@ -736,87 +1026,84 @@ function reportarPago() {
         totalGeneral += monto;
     });
     
-    // Generar resumen de códigos para mostrar en el formulario
     let resumenCodigos = '';
     let index = 0;
     Object.keys(codigos).forEach(codigo => {
         const bgColor = index % 2 === 0 ? '#1a1f35' : '#1e2340';
         resumenCodigos += `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 10px; background: ${bgColor}; border-radius: 4px; margin: 2px 0;">
-                        <span style="color: #8892a8; font-size: 12px;">📋 ${codigo}</span>
-                        <span style="color: #48bb78; font-weight: bold; font-size: 13px;">$${codigos[codigo].toLocaleString('es-AR')}</span>
-                    </div>
-                `;
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 10px; background: ${bgColor}; border-radius: 4px; margin: 2px 0;">
+                <span style="color: #8892a8; font-size: 12px;">📋 ${codigo}</span>
+                <span style="color: #48bb78; font-weight: bold; font-size: 13px;">$${codigos[codigo].toLocaleString('es-AR')}</span>
+            </div>
+        `;
         index++;
     });
 
     const html = `
-                <h3 style="text-align:center; color: #e8eaf0;">📢 Reportar Pago</h3>
-                <p style="text-align:center; color: #8892a8; font-size: 14px;">Completa los datos para verificar tu pago. Envía un reporte por comprobante.</p>
-                
-                <!-- Resumen de deuda -->
-                <div style="background: #1a1f35; padding: 10px; border-radius: 8px; margin: 10px 0; border: 1px solid #2a2f4a;">
-                    <div style="color: #7b61ff; font-weight: bold; font-size: 13px; margin-bottom: 6px;">📊 Resumen de deuda</div>
-                    ${resumenCodigos}
-                    <div style="border-top: 1px solid #2a2f4a; margin-top: 6px; padding-top: 6px; display: flex; justify-content: space-between;">
-                        <span style="color: #e8eaf0; font-weight: bold;">Total a pagar</span>
-                        <span style="color: #48bb78; font-weight: bold; font-size: 16px;">$${totalGeneral.toLocaleString('es-AR')}</span>
-                    </div>
-                </div>
+        <h3 style="text-align:center; color: #e8eaf0;">📢 Reportar Pago</h3>
+        <p style="text-align:center; color: #8892a8; font-size: 14px;">Completa los datos para verificar tu pago. Envía un reporte por comprobante.</p>
+        
+        <div style="background: #1a1f35; padding: 10px; border-radius: 8px; margin: 10px 0; border: 1px solid #2a2f4a;">
+            <div style="color: #7b61ff; font-weight: bold; font-size: 13px; margin-bottom: 6px;">📊 Resumen de deuda</div>
+            ${resumenCodigos}
+            <div style="border-top: 1px solid #2a2f4a; margin-top: 6px; padding-top: 6px; display: flex; justify-content: space-between;">
+                <span style="color: #e8eaf0; font-weight: bold;">Total a pagar</span>
+                <span style="color: #48bb78; font-weight: bold; font-size: 16px;">$${totalGeneral.toLocaleString('es-AR')}</span>
+            </div>
+        </div>
 
-                <!-- Instrucciones para el comprobante -->
-                <div style="background: #2a1f3d; padding: 10px; border-radius: 8px; margin: 10px 0; border-left: 3px solid #f6ad55;">
-                    <div style="color: #f6ad55; font-weight: bold; font-size: 13px; margin-bottom: 4px;">📌 Importante</div>
-                    <ul style="color: #8892a8; font-size: 12px; margin: 4px 0; padding-left: 20px;">
-                        <li>Adjunta una captura o foto del comprobante de pago</li>
-                        <li>El monto debe coincidir con el total a pagar</li>
-                        <li>Recibirás confirmación por WhatsApp en 24-48 horas</li>
-                    </ul>
-                </div>
+        <div style="background: #2a1f3d; padding: 10px; border-radius: 8px; margin: 10px 0; border-left: 3px solid #f6ad55;">
+            <div style="color: #f6ad55; font-weight: bold; font-size: 13px; margin-bottom: 4px;">📌 Importante</div>
+            <ul style="color: #8892a8; font-size: 12px; margin: 4px 0; padding-left: 20px;">
+                <li>Adjunta una captura o foto del comprobante de pago</li>
+                <li>El monto debe coincidir con el total a pagar</li>
+                <li>Recibirás confirmación por WhatsApp en 24-48 horas</li>
+            </ul>
+        </div>
 
-                <div class="form-group">
-                    <label>📌 DNI</label>
-                    <input type="text" id="reporteDni" value="${dni}" readonly>
-                </div>
+        <div class="form-group">
+            <label>📌 DNI</label>
+            <input type="text" id="reporteDni" value="${dni}" readonly>
+        </div>
 
-                <div class="form-group">
-                    <label>👤 Nombre completo <span style="color: #fc8181;">*</span></label>
-                    <input type="text" id="reporteNombre" placeholder="Ej: Juan Perez" required>
-                </div>
+        <div class="form-group">
+            <label>👤 Nombre completo <span style="color: #fc8181;">*</span></label>
+            <input type="text" id="reporteNombre" placeholder="Ej: Juan Perez" value="${nombre}" required>
+        </div>
 
-                <div class="form-group">
-                    <label>💰 Monto pagado <span style="color: #fc8181;">*</span></label>
-                    <input type="number" id="reporteMonto" placeholder="Ej: 11512" value="${totalGeneral}" required>
-                </div>
+        <div class="form-group">
+            <label>💰 Monto pagado <span style="color: #fc8181;">*</span></label>
+            <input type="number" id="reporteMonto" placeholder="Ej: 11512" value="" required>
+            <small style="color: #f6ad55;">💡 Si pagaste varios códigos, ingresá el monto total que depositaste</small>
+        </div>
 
-                <div class="form-group">
-                    <label>📱 WhatsApp <span style="color: #fc8181;">*</span></label>
-                    <input type="text" id="reporteWhatsApp" placeholder="Ej: 5491123456789" required>
-                    <small>📲 Con este número el administrador te confirmará el pago</small>
-                </div>
+        <div class="form-group">
+            <label>📱 WhatsApp <span style="color: #fc8181;">*</span></label>
+            <input type="text" id="reporteWhatsApp" placeholder="Ej: 5491123456789" required>
+            <small>📲 Con este número el administrador te confirmará el pago</small>
+        </div>
 
-                <div class="form-group">
-                    <label>📎 Adjuntar comprobante <span style="color: #f6ad55;">(opcional pero recomendado)</span></label>
-                    <input type="file" id="reporteArchivo" accept="image/*,.pdf">
-                    <div style="margin-top: 5px;">
-                        <img id="previewImage" class="preview-image" style="display: none; max-width: 100%; max-height: 200px; border-radius: 8px; border: 1px solid #2a2f4a;" />
-                        <div id="fileInfo" style="display: none; color: #8892a8; font-size: 12px; margin-top: 4px;"></div>
-                    </div>
-                </div>
+        <div class="form-group">
+            <label>📎 Adjuntar comprobante <span style="color: #f6ad55;">(opcional pero recomendado)</span></label>
+            <input type="file" id="reporteArchivo" accept="image/*,.pdf">
+            <div style="margin-top: 5px;">
+                <img id="previewImage" class="preview-image" style="display: none; max-width: 100%; max-height: 200px; border-radius: 8px; border: 1px solid #2a2f4a;" />
+                <div id="fileInfo" style="display: none; color: #8892a8; font-size: 12px; margin-top: 4px;"></div>
+            </div>
+        </div>
 
-                <div style="display:flex; flex-direction:column; gap:8px;">
-                    <button class="btn-pago btn-reportar" onclick="enviarReporte()" id="btnEnviarReporte">
-                        📤 Enviar reporte
-                    </button>
-                    <button class="btn-cancelar-pago" onclick="consultar()">❌ Cancelar</button>
-                </div>
-                <div id="envioStatus" class="envio-status"></div>
-            `;
+        <div style="display:flex; flex-direction:column; gap:8px;">
+            <button class="btn-pago btn-reportar" onclick="enviarReporte()" id="btnEnviarReporte">
+                📤 Enviar reporte
+            </button>
+            <button class="btn-cancelar-pago" onclick="consultar()">❌ Cancelar</button>
+        </div>
+        <div id="envioStatus" class="envio-status"></div>
+    `;
 
     resultado.innerHTML = html;
     resultado.style.display = 'block';
 
-    // Manejar la previsualización del archivo
     document.getElementById('reporteArchivo')?.addEventListener('change', function(e) {
         const preview = document.getElementById('previewImage');
         const fileInfo = document.getElementById('fileInfo');
@@ -825,15 +1112,13 @@ function reportarPago() {
             const file = this.files[0];
             const fileSize = (file.size / 1024 / 1024).toFixed(2);
             
-            // Mostrar información del archivo
             fileInfo.style.display = 'block';
             fileInfo.innerHTML = `
-                        📄 ${file.name} (${fileSize} MB)
-                        ${fileSize > 5 ? ' ⚠️ Archivo grande, puede tardar en enviarse' : ''}
-                    `;
+                📄 ${file.name} (${fileSize} MB)
+                ${fileSize > 5 ? ' ⚠️ Archivo grande, puede tardar en enviarse' : ''}
+            `;
             fileInfo.style.color = fileSize > 5 ? '#fc8181' : '#48bb78';
             
-            // Previsualizar imagen
             if (file.type.startsWith('image/')) {
                 const reader = new FileReader();
                 reader.onload = function(ev) {
@@ -842,7 +1127,6 @@ function reportarPago() {
                 };
                 reader.readAsDataURL(file);
             } else {
-                // Si no es imagen, mostrar icono
                 preview.style.display = 'none';
                 fileInfo.innerHTML += ' 📎 (Archivo no previsualizable)';
             }
@@ -904,19 +1188,27 @@ function exportarReportes() {
 }
 
 // ============================================
-// ENTER PARA CONSULTAR
+// INICIALIZACIÓN
 // ============================================
 
 document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('dniInput').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') consultar();
-    });
+    console.log('📄 DOM cargado, inicializando...');
+    
+    const dniInput = document.getElementById('dniInput');
+    if (dniInput) {
+        dniInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') consultar();
+        });
+    }
 
     const fechaGuardada = localStorage.getItem('fecha_csv');
-    if (fechaGuardada) {
-        document.getElementById('fechaActual').textContent = fechaGuardada;
+    const fechaSpan = document.getElementById('fechaActual');
+    if (fechaGuardada && fechaSpan) {
+        fechaSpan.textContent = fechaGuardada;
     }
 
     cargarDatos();
     verReportesGuardados();
+    
+    console.log('✅ Inicialización completada');
 });
