@@ -852,7 +852,7 @@ function informame() {
         return;
     }
 
-    // Agrupar por Producto (más informativo)
+    // Agrupar por Producto
     const productos = {};
     encontrados.forEach(d => {
         const producto = d.Producto || d.producto || 'Sin producto';
@@ -874,7 +874,7 @@ function informame() {
                 📋 INFORME DETALLADO POR PRODUCTO
             </div>
             <div style="text-align:center;color:#8892a8;font-size:12px;margin-bottom:8px;">
-                🔍 Cada deuda individual con su entidad, fecha y observación
+                🔍 Cada deuda individual con su entidad, fecha y descripción
             </div>
         </div>
     `;
@@ -903,24 +903,22 @@ function informame() {
                         Subtotal: $${totalProducto.toLocaleString('es-AR')}
                     </span>
                 </div>
-                ${observacion ? `
-                    <div style="color: #9b81ff; font-size: 13px; margin-bottom: 8px; padding: 8px; background: #151928; border-radius: 4px; border-left: 2px solid #7b61ff;">
-                        📝 ${observacion}
-                    </div>
-                ` : ''}
         `;
 
+        // Mostrar la observación solo si existe (y solo UNA vez por producto)
+        if (observacion) {
+            html += `
+                <div style="color: #8892a8; font-size: 12px; margin-bottom: 8px; padding: 6px 8px; background: #151928; border-radius: 4px; border-left: 2px solid #7b61ff;">
+                    📝 ${observacion}
+                </div>
+            `;
+        }
+
+        // Mostrar cada deuda individual
         items.forEach(d => {
             const cartera = d.Cartera || d.cartera || 'Sin cartera';
             const entidad = carteraEntidad[cartera] || cartera || 'Entidad no especificada';
             const fecha = d['Fecha de Mora'] || d.FechaMora || d['FechaMora'] || d.Fecha || d.fecha || 'Fecha no disponible';
-            
-            const descripcionProducto = d['Descripcion Producto'] || 
-                                       d.DescripcionProducto || 
-                                       d['DescripcionProducto'] || 
-                                       d.Descripcion || 
-                                       d.descripcion || 
-                                       'Producto no disponible';
             
             let montoStr = String(d.Deuda || '0').replace(/[.,]/g, '').trim();
             const monto = parseFloat(montoStr) || 0;
@@ -933,9 +931,6 @@ function informame() {
                     </div>
                     <div style="color:#8892a8;font-size:0.8rem;margin-top:3px;">
                         📅 ${fecha}
-                    </div>
-                    <div style="color:#a8b2d4;font-size:0.8rem;margin-top:2px;">
-                        📌 ${descripcionProducto}
                     </div>
                 </div>
             `;
