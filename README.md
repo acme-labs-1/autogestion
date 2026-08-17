@@ -1,4 +1,4 @@
-# 🤖 Deuda Bot — Sistema de Gestión y Verificación de Pagos
+# 🤖 Deuda Bot - Sistema de Gestión y Verificación de Pagos
 
 Sistema web + backend para **consulta de deudas, desglose por código de pago, detalle por producto, reporte de pagos y verificación administrativa mediante Telegram**.
 
