@@ -1,20 +1,21 @@
 # 🤖 Deuda Bot — Sistema de Gestión y Verificación de Pagos
 
-Sistema web + backend para **consulta de deudas, desglose por código de pago, reporte de pagos y verificación administrativa mediante Telegram**.
+Sistema web + backend para **consulta de deudas, desglose por código de pago, detalle por producto, reporte de pagos y verificación administrativa mediante Telegram**.
 
 La arquitectura separa la operación pública de la administración interna:
 
-- **GitHub Pages** → frontend público y catálogo de deudas.
-- **VPS** → API PHP, almacenamiento de reportes y bot de Telegram.
-- **Telegram** → interfaz de administración y verificación.
-- **JSON** → persistencia de reportes y verificaciones.
-- **localStorage** → respaldo local de los reportes enviados desde el navegador.
+* **GitHub Pages** → frontend público.
+* **CSV** → catálogo de deudas, entidades y descripciones.
+* **VPS** → API PHP, almacenamiento de reportes y bot de Telegram.
+* **Telegram** → interfaz de administración y verificación.
+* **JSON** → persistencia de reportes y verificaciones.
+* **localStorage** → almacenamiento local de reportes realizados desde el navegador.
 
-> **Nota:** este README documenta el comportamiento confirmado del frontend y la arquitectura descrita para el backend. La implementación PHP/bot no está incluida en los archivos revisados aquí, por lo que las validaciones internas del backend se describen como parte de la arquitectura, no como detalles auditados de código.
+> **Nota:** este README está actualizado a partir del código frontend revisado. La implementación de `autogest_back.php`, `bot.py`, `reportes.json` y `verificados.json` no forma parte del archivo analizado, por lo que las funciones internas del backend se documentan únicamente como arquitectura prevista.
 
 ---
 
-## 🏗️ Arquitectura
+# 🏗️ Arquitectura
 
 ```text
                               ┌──────────────────────┐
@@ -31,6 +32,8 @@ La arquitectura separa la operación pública de la administración interna:
               │                    │          │                    │
               │ HTML + CSS + JS    │          │ autogest_back.php  │
               │ deudas.csv         │          │ reportes.json      │
+              │ entidades.csv      │          │                    │
+              │ descripcion.csv    │          │                    │
               └─────────┬──────────┘          └─────────┬──────────┘
                         │                               │
                         │                               │ Telegram Bot API
@@ -52,16 +55,16 @@ La arquitectura separa la operación pública de la administración interna:
                         │                    │ comandos admin     │
                         │                    └────────────────────┘
                         │
-                        └────── Consulta directa del CSV
+                        └────── Consulta directa de los CSV
 ```
 
 ---
 
 # 🔄 Flujo general
 
-El sistema tiene dos recorridos principales:
+El frontend tiene dos recorridos principales.
 
-### 1. Consulta de deuda
+## 1. Consulta de deuda
 
 ```text
 Usuario
@@ -70,104 +73,265 @@ Usuario
    ▼
 GitHub Pages
    │
-   │ HTTP GET
-   ▼
-deudas.csv
-   │
-   │ JavaScript
-   ▼
-Filtrado por DNI
+   ├── deudas.csv
+   ├── entidades.csv
+   └── descripcion.csv
    │
    ▼
-Deudas agrupadas por cartera
+JavaScript
+   │
+   ├── Filtrado por DNI
+   ├── Agrupación por código
+   ├── Agrupación por cartera
+   └── Asociación de descripciones
    │
    ▼
-Total + métodos de pago
+Resumen / Detalle
+   │
+   ▼
+Métodos de pago
 ```
 
-### 2. Reporte de pago
+## 2. Reporte de pago
 
 ```text
 Usuario
    │
-   │ Completa formulario
    │ DNI + nombre + monto
    │ WhatsApp + comprobante opcional
    ▼
 Frontend
    │
-   ├── Guarda copia local
-   │   └── localStorage
+   ├── Guarda copia en localStorage
    │
-   │ FormData / POST
-   ▼
-autogest_back.php
-   │
-   ├── Validación
-   ├── Persistencia
-   └── Notificación
-          │
-          ▼
-      Telegram
-          │
-          ▼
-   Administradores
-          │
-      ┌───┴───┐
-      ▼       ▼
-  Verificar Rechazar
+   └── FormData / POST
+             │
+             ▼
+      autogest_back.php
+             │
+             ├── Validación
+             ├── Persistencia
+             └── Telegram
+                    │
+                    ▼
+              Administradores
+                    │
+               ┌────┴────┐
+               ▼         ▼
+          Verificar    Rechazar
 ```
 
 ---
 
-# 🔎 1. Consulta de deuda
+# 📂 Archivos públicos del frontend
 
-La consulta se realiza directamente desde el frontend, sin necesidad de consultar el backend.
-
-## Proceso
+El frontend utiliza tres archivos CSV:
 
 ```text
-Usuario
-   │
-   │ Ingresa DNI
-   ▼
-GitHub Pages
-   │
-   │ HTTP GET
-   ▼
 deudas.csv
-   │
-   │ JavaScript
-   ▼
-Filtrado por DNI
-   │
-   ▼
-Agrupación por Código de Pago
-   │
-   ├── Código A → detalle + subtotal
-   ├── Código B → detalle + subtotal
-   └── Código C → detalle + subtotal
-   │
-   ▼
-Total general
+entidades.csv
+descripcion.csv
 ```
 
-El frontend descarga `deudas.csv`, lo convierte a objetos JavaScript y busca coincidencias exactas por DNI.
+Todos son cargados mediante `fetch()` desde el mismo directorio del frontend.
 
-Después de encontrar los registros, la información se organiza en dos niveles:
+La carga se realiza al iniciar la página mediante:
+
+```javascript
+cargarDatos();
+```
+
+El proceso de inicialización está conectado a `DOMContentLoaded`.
+
+---
+
+# 📄 1. `deudas.csv`
+
+Es la fuente principal de información de las deudas.
+
+El frontend espera campos como:
 
 ```text
 DNI
- └── Código de pago
-      └── Cartera
-           └── Producto + Deuda
+Nombre
+Codigo
+Cartera
+Producto
+Deuda
+Fecha
 ```
 
-Para cada código se calcula un subtotal y finalmente se calcula el total general.
+También contempla diferentes variantes para determinados campos durante la visualización.
 
-### Validación del DNI
+Ejemplo conceptual:
 
-El frontend acepta únicamente:
+```csv
+DNI,Nombre,Codigo,Cartera,Producto,Deuda,Fecha
+12345678,Usuario,ABC123,Cartera A,Producto 1,50000,06/08/2026
+12345678,Usuario,ABC123,Cartera B,Producto 2,25000,06/08/2026
+```
+
+---
+
+# 🏢 2. `entidades.csv`
+
+El frontend carga un archivo adicional para asociar una cartera con una entidad.
+
+La estructura esperada conceptualmente es:
+
+```text
+cartera
+entidad
+```
+
+Durante la carga se crea un mapa:
+
+```text
+carteraEntidad
+```
+
+Ejemplo:
+
+```text
+CARTERA_001 → Entidad A
+CARTERA_002 → Entidad B
+CARTERA_003 → Entidad C
+```
+
+Esto permite que la interfaz muestre la entidad asociada en lugar del identificador interno de la cartera.
+
+El archivo se carga mediante:
+
+```javascript
+fetch('entidades.csv')
+```
+
+y sus datos son procesados por `csvToJson()`.
+
+---
+
+# 📝 3. `descripcion.csv`
+
+El frontend también carga un catálogo de descripciones u observaciones asociadas a productos.
+
+Puede utilizar campos como:
+
+```text
+NumeroProducto
+Codigo
+codigo
+Observaciones
+observaciones
+OBSERVACIONES
+Descripcion
+descripcion
+```
+
+El sistema genera el mapa:
+
+```text
+descripcionProducto
+```
+
+Conceptualmente:
+
+```text
+Producto 001 → descripción del producto
+Producto 002 → observación correspondiente
+Producto 003 → descripción correspondiente
+```
+
+La descripción se muestra en la vista detallada cuando existe una coincidencia.
+
+---
+
+# ⚙️ 4. Carga de datos
+
+La función principal es:
+
+```javascript
+cargarDatos()
+```
+
+El proceso tiene una interfaz de progreso.
+
+```text
+0%   → Iniciando carga
+15%  → Cargando deudas
+40%  → Procesando datos
+60%  → Cargando entidades
+80%  → Cargando observaciones
+95%  → Preparando interfaz
+100% → Listo
+```
+
+Primero se descarga:
+
+```text
+deudas.csv
+```
+
+Después:
+
+```text
+entidades.csv
+```
+
+y finalmente:
+
+```text
+descripcion.csv
+```
+
+Una vez finalizado el proceso:
+
+```javascript
+datosCargados = true;
+```
+
+---
+
+# 📅 Fecha de actualización del catálogo
+
+El frontend intenta obtener la fecha del archivo mediante el header HTTP:
+
+```text
+Last-Modified
+```
+
+Si no está disponible, utiliza:
+
+```text
+localStorage.fecha_csv
+```
+
+Si tampoco existe, genera una fecha local como fallback.
+
+Finalmente guarda:
+
+```text
+fecha_csv
+```
+
+en `localStorage`.
+
+La fecha se muestra mediante el elemento:
+
+```text
+fechaActual
+```
+
+---
+
+# 🔎 5. Consulta por DNI
+
+La función principal de consulta es:
+
+```javascript
+consultar()
+```
+
+El DNI debe cumplir:
 
 ```text
 7 u 8 dígitos numéricos
@@ -183,9 +347,75 @@ Ejemplos:
 12A45678    ❌
 ```
 
-### Agrupación por Código de Pago
+La validación utilizada conceptualmente es:
 
-La lógica actual agrupa primero por `Codigo` y luego por `Cartera`.
+```javascript
+/^\d+$/
+```
+
+y se verifica además que la longitud sea entre 7 y 8 caracteres.
+
+---
+
+# 🔍 6. Búsqueda
+
+La búsqueda se realiza directamente sobre:
+
+```javascript
+deudas
+```
+
+utilizando coincidencia exacta:
+
+```javascript
+String(d.DNI).trim() === dni
+```
+
+No se consulta una API para buscar la deuda.
+
+El flujo es:
+
+```text
+DNI
+ │
+ ▼
+deudas[]
+ │
+ ▼
+filter()
+ │
+ ▼
+Registros coincidentes
+```
+
+---
+
+# 📊 7. Vista rápida de deuda
+
+La primera vista corresponde a:
+
+```javascript
+consultar()
+```
+
+Su objetivo es ofrecer una visualización rápida orientada a la acción.
+
+Los registros se agrupan primero por:
+
+```text
+Codigo
+```
+
+y dentro de cada código se agrupan las carteras.
+
+La estructura visual es:
+
+```text
+DNI
+ └── Código de pago
+      └── Entidad
+           └── Importe
+```
 
 Ejemplo:
 
@@ -193,155 +423,424 @@ Ejemplo:
 👤 Usuario
 📜 DNI: 12345678
 
-📋 Código de pago: ABC123       Subtotal: $50.000
+📋 RESUMEN POR CÓDIGO DE PAGO
 
-🏢 Cartera A
-   📌 Producto 1                 $30.000
+📋 ABC123                     $50.000
+   🏢 Entidad A              $30.000
+   🏢 Entidad B              $20.000
 
-🏢 Cartera B
-   📌 Producto 2                 $20.000
+📋 XYZ789                     $15.000
+   🏢 Entidad C              $15.000
 
-📋 Código de pago: XYZ789       Subtotal: $15.000
-
-🏢 Cartera C
-   📌 Producto 3                 $15.000
-
-────────────────────────────────────────
-💰 Deuda total                  $65.000
+────────────────────────────────
+💰 $65.000
 ```
-
-### Resumen por código
-
-Además del detalle, el frontend muestra un resumen compacto:
-
-```text
-📊 Resumen por código de pago
-
-📋 ABC123                         $50.000
-📋 XYZ789                         $15.000
-────────────────────────────────────────
-💰 Deuda total                   $65.000
-```
-
-Esto permite identificar rápidamente cuánto corresponde a cada código sin perder el detalle de las carteras y productos.
-
-### Fecha de mora
-
-Si alguno de los registros encontrados contiene `Fecha`, el frontend muestra la fecha de mora asociada.
 
 ---
-# 📄 2. Estructura esperada de `deudas.csv`
 
-El frontend utiliza campos como:
+# 💰 8. Cálculo de deuda
+
+Para cada registro se obtiene:
+
+```text
+Deuda
+```
+
+y se eliminan separadores:
+
+```javascript
+String(d.Deuda || '0')
+    .replace(/[.,]/g, '')
+```
+
+Después se convierte a número.
+
+El sistema calcula:
+
+```text
+Total del código
++
+Total general
+```
+
+Conceptualmente:
+
+```text
+Código A
+ ├── deuda 1
+ ├── deuda 2
+ └── deuda 3
+      ↓
+  Subtotal A
+
+Código B
+ ├── deuda 1
+ └── deuda 2
+      ↓
+  Subtotal B
+
+Subtotal A + Subtotal B
+           ↓
+      Total general
+```
+
+---
+
+# 📋 9. Resumen por código
+
+La vista rápida muestra un resumen:
+
+```text
+📋 ABC123       $50.000
+📋 XYZ789       $15.000
+
+──────────────────────
+💰 $65.000
+```
+
+Además ofrece las acciones:
+
+```text
+📋 Ver detalle
+💳 Mercado Pago
+🏦 Banco
+📢 ¿Ya pagaste? Reporta tu pago
+💬 Habla con nosotros
+```
+
+---
+
+# 🔍 10. Vista detallada
+
+La función:
+
+```javascript
+informame()
+```
+
+ofrece una segunda forma de visualizar la deuda.
+
+A diferencia de la vista rápida, aquí la información se agrupa por:
+
+```text
+Producto
+```
+
+La estructura es:
 
 ```text
 DNI
-Nombre
-Codigo
-Cartera
-Producto
-Deuda
-Fecha
+ └── Producto
+      ├── Observación
+      └── Deudas individuales
+           ├── Entidad
+           ├── Fecha
+           └── Importe
 ```
 
-Ejemplo conceptual:
-
-```csv
-DNI,Nombre,Codigo,Cartera,Producto,Deuda,Fecha
-12345678,Usuario,ABC123,Cartera A,Producto 1,50000,06/08/2026
-12345678,Usuario,ABC123,Cartera B,Producto 2,25000,06/08/2026
-```
-
-El sistema puede mostrar:
+Ejemplo:
 
 ```text
-👤 Usuario
-📜 DNI: 12345678
-📋 Código de pago: ABC123
+📋 INFORME DETALLADO POR PRODUCTO
 
-🏢 Cartera A
-📌 Producto 1              $50.000
+📦 Producto 001
+Subtotal: $50.000
 
-🏢 Cartera B
-📌 Producto 2              $25.000
+📝 Observación del producto
 
-💰 Deuda total:            $75.000
+🏢 Entidad A       $30.000
+📅 06/08/2026
+
+🏢 Entidad B       $20.000
+📅 06/08/2026
+
+────────────────────────
+💰 Deuda total     $50.000
 ```
 
 ---
 
-# 💳 3. Métodos de pago
+# 📝 11. Descripciones de productos
 
-Una vez calculado el **total general**, el frontend ofrece:
+La vista detallada busca la observación correspondiente mediante:
+
+```javascript
+descripcionProducto[producto]
+```
+
+Si existe una descripción:
+
+```text
+📝 Descripción
+```
+
+se muestra una sola vez para ese producto.
+
+Si no existe, simplemente no se muestra.
+
+---
+
+# 📅 12. Fecha de mora
+
+La vista detallada contempla diferentes nombres de campo:
+
+```text
+Fecha de Mora
+FechaMora
+Fecha
+fecha
+```
+
+El sistema utiliza el primero disponible.
+
+Si ninguno existe:
+
+```text
+Fecha no disponible
+```
+
+---
+
+# 💳 13. Métodos de pago
+
+La función:
+
+```javascript
+pagar(metodo, total)
+```
+
+recibe:
+
+```text
+metodo
+total
+```
+
+Antes de mostrar los datos de pago, vuelve a calcular el desglose por código.
+
+Los métodos actualmente contemplados son:
+
+```text
+Mercado Pago
+Transferencia bancaria
+```
+
+---
+
+# 💳 14. Mercado Pago
+
+La interfaz muestra:
 
 ```text
 💳 Mercado Pago
-🏦 Transferencia
 ```
 
-Ambos métodos utilizan el mismo total general de la consulta.
-
-Al seleccionar un método, el sistema vuelve a mostrar el desglose por código:
+junto con:
 
 ```text
-📊 Desglose por código de pago
-
-📋 ABC123                         $50.000
-📋 XYZ789                         $15.000
-────────────────────────────────────────
-Total                             $65.000
+Desglose por código
+Total a pagar
+CVU
+Alias
+Titular
 ```
 
-Después se muestran los datos correspondientes al método seleccionado.
+El botón:
+
+```text
+✅ Ya pagué, reportar
+```
+
+abre el formulario de reporte.
 
 ---
 
-# 📢 4. Reporte de pago
+# 🏦 15. Transferencia bancaria
 
-El usuario puede reportar un pago desde la consulta.
+La interfaz muestra:
+
+```text
+🏦 Transferencia Bancaria
+```
+
+junto con:
+
+```text
+Desglose por código
+Total a pagar
+CBU
+Alias
+Banco
+Titular
+```
+
+También permite:
+
+```text
+✅ Ya pagué, reportar
+```
+
+---
+
+# 📢 16. Reporte de pago
+
+La función:
+
+```javascript
+reportarPago()
+```
+
+crea dinámicamente el formulario.
+
+Antes de mostrarlo, vuelve a consultar las deudas del DNI y calcula:
+
+```text
+Código → importe
+```
+
+y:
+
+```text
+Total general
+```
+
+El formulario muestra el resumen de la deuda antes de solicitar los datos.
+
+---
+
+# 🧾 17. Datos del reporte
 
 El formulario contiene:
 
-- **DNI** → obtenido automáticamente de la consulta y en modo lectura.
-- **Nombre completo**.
-- **Monto pagado**.
-- **WhatsApp**.
-- **Comprobante** opcional.
-
-El comprobante utiliza:
-
-```html
-accept="image/*"
+```text
+DNI
+Nombre completo
+Monto pagado
+WhatsApp
+Comprobante
 ```
 
-y se muestra una vista previa antes del envío.
+## DNI
 
-### Límite del frontend
+Se obtiene automáticamente de la consulta y se muestra como:
 
-El archivo se comprueba antes del envío:
+```html
+readonly
+```
+
+El usuario no puede modificarlo desde el formulario.
+
+## Nombre
+
+Campo obligatorio visualmente:
+
+```text
+Nombre completo *
+```
+
+## Monto
+
+Campo numérico:
+
+```text
+Monto pagado *
+```
+
+El frontend indica:
+
+```text
+Si pagaste varios códigos, ingresá el monto total que depositaste
+```
+
+## WhatsApp
+
+Campo mostrado como obligatorio en la interfaz:
+
+```text
+WhatsApp *
+```
+
+Se utiliza para que el administrador pueda contactar al usuario.
+
+## Comprobante
+
+El archivo se define como:
+
+```html
+accept="image/*,.pdf"
+```
+
+Por lo tanto, actualmente se aceptan:
+
+```text
+Imágenes
+PDF
+```
+
+El comprobante es opcional pero recomendado.
+
+---
+
+# 📎 18. Previsualización del comprobante
+
+Cuando se selecciona un archivo:
+
+```javascript
+FileReader()
+```
+
+permite generar una vista previa si se trata de una imagen.
+
+Para archivos que no son imágenes:
+
+```text
+📎 Archivo no previsualizable
+```
+
+También se muestra:
+
+```text
+Nombre del archivo
+Tamaño
+```
+
+Si supera los 5 MB, se muestra una advertencia.
+
+---
+
+# ⚠️ 19. Límite del comprobante
+
+El envío principal comprueba:
 
 ```text
 Máximo: 5 MB
 ```
 
-Si supera el límite, el envío se detiene.
+Si el archivo supera ese tamaño:
+
+```text
+❌ El archivo es muy grande
+```
+
+y el envío se detiene.
 
 ---
-# 📤 5. Envío al backend
 
-El frontend utiliza `FormData` y realiza:
+# 📤 20. Envío al backend
 
-```text
-POST https://carover0.xyz/api/autogest_back.php
+La función:
+
+```javascript
+enviarReporte()
 ```
 
-Contenido conceptual:
+crea un objeto:
 
-```text
-multipart/form-data
+```javascript
+FormData()
 ```
 
-Campos enviados:
+con:
 
 ```text
 dni
@@ -351,116 +850,206 @@ whatsapp
 comprobante
 ```
 
-El comprobante solo se agrega cuando el usuario selecciona uno.
+El comprobante solo se agrega si existe un archivo seleccionado.
+
+El envío se realiza mediante:
+
+```text
+POST
+https://carover0.xyz/api/autogest_back.php
+```
+
+utilizando:
+
+```text
+multipart/form-data
+```
 
 ---
 
-# 💾 6. Persistencia local del reporte
+# ⏱️ 21. Timeout
 
-Antes de enviar el reporte al servidor, el frontend guarda una copia en:
-
-```text
-localStorage
-```
-
-Clave utilizada:
+El envío utiliza:
 
 ```text
-reportes_fyd
+AbortController
 ```
 
-La copia local contiene, entre otros datos:
-
-```json
-{
-  "fecha": "13/08/2026, 10:30:00",
-  "dni": "12345678",
-  "nombre": "Usuario",
-  "monto": "50000",
-  "whatsapp": "5491123456789"
-}
-```
-
-El estado local puede actualizarse con valores como:
-
-```text
-Pendiente
-✅ Enviado al servidor
-```
-
-Este estado indica la situación del envío desde el navegador y **no equivale al estado administrativo de verificación del backend**.
-
-La estructura conceptual es:
-
-```json
-{
-  "fecha": "13/08/2026, 10:30:00",
-  "dni": "12345678",
-  "nombre": "Usuario",
-  "monto": "50000",
-  "whatsapp": "5491123456789"
-}
-```
-
-Esto permite conservar información localmente si el servidor demora o si existe un problema temporal de comunicación.
-
----
-
-# 🔁 7. Reintento de reportes
-
-El frontend dispone de mecanismos para trabajar con reportes pendientes de envío.
-
-Puede:
-
-1. Leer `reportes_fyd` desde `localStorage`.
-2. Identificar reportes que no figuren como enviados.
-3. Reenviarlos uno por uno.
-4. Esperar aproximadamente 1 segundo entre envíos.
-5. Marcar localmente los reportes enviados correctamente.
-
-También existe una función de consulta de los reportes almacenados para depuración:
-
-```text
-verReportesGuardados()
-```
-
-y una función de exportación:
-
-```text
-exportarReportes()
-```
-
-que genera un archivo JSON local.
-
----
-
-# ⏱️ 8. Timeout y manejo de errores
-
-El envío principal utiliza un timeout de:
+con un timeout de:
 
 ```text
 60 segundos
 ```
 
-Si se supera:
+Si se alcanza el límite:
 
 ```text
-El servidor está tardando en responder.
+⏳ El servidor está tardando en responder.
 ```
 
-El frontend informa que el reporte quedó guardado localmente.
-
-Si el envío falla mientras se adjuntó un comprobante, se ofrece una segunda oportunidad:
-
-```text
-Reintentar sin comprobante
-```
-
-Esto permite separar los problemas relacionados con el archivo de los problemas generales del reporte.
+El frontend informa al usuario que el reporte fue conservado localmente.
 
 ---
 
-# 📤 9. Exportación local
+# 💾 22. Persistencia local
+
+Antes del envío al servidor, el reporte se guarda mediante:
+
+```javascript
+guardarReporteLocal()
+```
+
+en:
+
+```text
+localStorage
+```
+
+utilizando la clave:
+
+```text
+reportes_fyd
+```
+
+Cada registro incluye conceptualmente:
+
+```json
+{
+  "fecha": "17/08/2026, 08:30:00",
+  "dni": "12345678",
+  "nombre": "Usuario",
+  "monto": "50000",
+  "whatsapp": "5491123456789"
+}
+```
+
+La fecha se genera mediante:
+
+```javascript
+new Date().toLocaleString('es-AR')
+```
+
+---
+
+# 🔁 23. Estado local de reportes
+
+El frontend dispone de una función:
+
+```javascript
+actualizarReporteLocal(dni, estado)
+```
+
+que permite guardar:
+
+```text
+estado
+fecha_actualizacion
+```
+
+en el reporte correspondiente.
+
+También se contempla el estado:
+
+```text
+✅ Enviado al servidor
+```
+
+y, cuando no existe estado:
+
+```text
+Pendiente
+```
+
+> **Importante:** en el código actualmente revisado, `enviarReporte()` guarda el reporte localmente antes del POST, pero no llama posteriormente a `actualizarReporteLocal()` cuando recibe `resultado.ok`. Por lo tanto, el marcado automático como `✅ Enviado al servidor` no está conectado al flujo principal de envío actual.
+
+---
+
+# 🔁 24. Reenvío de reportes pendientes
+
+Existe la función:
+
+```javascript
+reenviarReportesPendientes()
+```
+
+que busca en:
+
+```text
+localStorage.reportes_fyd
+```
+
+los registros cuyo estado no sea:
+
+```text
+✅ Enviado al servidor
+```
+
+Estos reportes se reenvían uno por uno al backend.
+
+Entre cada envío existe una espera aproximada de:
+
+```text
+1 segundo
+```
+
+El flujo es:
+
+```text
+localStorage
+     │
+     ▼
+Reportes sin estado enviado
+     │
+     ▼
+Uno por uno
+     │
+     ▼
+POST al VPS
+     │
+     ▼
+resultado.ok
+     │
+     ▼
+actualizarReporteLocal()
+```
+
+La función informa al finalizar:
+
+```text
+Se reenviaron X de Y reportes pendientes.
+```
+
+---
+
+# ⚠️ 25. Consideración sobre el reenvío
+
+Debido a que el envío principal actualmente no marca automáticamente:
+
+```text
+✅ Enviado al servidor
+```
+
+un reporte exitosamente enviado puede continuar apareciendo localmente como pendiente.
+
+Esto significa que, con el código actual, la función:
+
+```javascript
+reenviarReportesPendientes()
+```
+
+puede volver a enviar reportes que ya fueron aceptados por el backend.
+
+La corrección natural sería actualizar el estado después de:
+
+```javascript
+if (resultado.ok)
+```
+
+en `enviarReporte()`.
+
+---
+
+# 📤 26. Exportación local
 
 El frontend dispone de:
 
@@ -468,37 +1057,187 @@ El frontend dispone de:
 exportarReportes()
 ```
 
-La función toma los reportes almacenados en `localStorage` y genera un archivo JSON local con formato:
+La función obtiene:
+
+```text
+reportes_fyd
+```
+
+y genera un archivo JSON descargable.
+
+El nombre utiliza:
 
 ```text
 reportes_YYYY-MM-DD.json
 ```
 
-También existe:
+Ejemplo:
+
+```text
+reportes_2026-08-17.json
+```
+
+---
+
+# 🔎 27. Consulta de reportes almacenados
+
+Existe:
 
 ```javascript
 verReportesGuardados()
 ```
 
-para inspeccionar los reportes almacenados localmente durante tareas de soporte o depuración.
+que permite inspeccionar los reportes existentes en `localStorage`.
+
+También existe:
+
+```javascript
+verEstadoReportes()
+```
+
+que muestra información resumida de los últimos reportes.
+
+Conceptualmente:
+
+```text
+📊 Total reportes: X
+
+1. DNI: 12345678 | Usuario | $50000 | Estado: Pendiente
+2. DNI: 87654321 | Usuario | $30000 | Estado: ✅ Enviado al servidor
+```
+
+Estas funciones son principalmente herramientas de soporte y depuración.
 
 ---
 
-# 🗃️ 10. Almacenamiento en el VPS
+# ❌ 28. Manejo de errores
 
-La arquitectura del backend utiliza:
+El frontend contempla:
+
+* DNI inválido.
+* CSV no disponible.
+* Datos todavía no cargados.
+* Archivo superior a 5 MB.
+* Error HTTP.
+* Respuesta que no sea JSON.
+* Timeout de 60 segundos.
+* Error al enviar comprobante.
+* Reintento sin comprobante.
+* Reportes conservados localmente.
+
+---
+
+# 🔄 29. Reintento sin comprobante
+
+Si el envío falla y existe un archivo adjunto, el frontend pregunta:
+
+```text
+¿Quieres intentar enviar SIN el comprobante?
+```
+
+Si el usuario acepta:
+
+```text
+Se elimina el archivo
+       │
+       ▼
+Se oculta la previsualización
+       │
+       ▼
+enviarReporte()
+```
+
+Esto permite intentar enviar nuevamente únicamente los datos principales.
+
+---
+
+# 📱 30. WhatsApp
+
+La función:
+
+```javascript
+abrirWhatsApp()
+```
+
+genera un mensaje predefinido utilizando:
+
+```text
+Nombre
+DNI
+```
+
+El formato conceptual es:
+
+```text
+Hola, soy Usuario (DNI: 12345678).
+Necesito ayuda con mi deuda.
+```
+
+Luego abre WhatsApp mediante un enlace `wa.me`.
+
+---
+
+# ✈️ 31. Telegram
+
+La función:
+
+```javascript
+abrirTelegram()
+```
+
+genera un enlace hacia el bot/canal de atención:
+
+```text
+t.me/fydonline
+```
+
+incluyendo el DNI como parámetro de inicio.
+
+El mensaje también incorpora:
+
+```text
+Nombre
+DNI
+```
+
+---
+
+# 💬 32. Habla con nosotros
+
+La función:
+
+```javascript
+hablaConNosotros()
+```
+
+presenta un menú con:
+
+```text
+📱 WhatsApp
+✈️ Telegram
+```
+
+El usuario puede elegir el canal de contacto.
+
+---
+
+# 🗃️ 33. Persistencia del backend
+
+La arquitectura prevista utiliza en el VPS:
 
 ```text
 VPS
+├── autogest_back.php
 ├── reportes.json
-└── verificados.json
+├── verificados.json
+└── bot.py
 ```
 
 ## `reportes.json`
 
-Contiene los reportes recibidos desde el frontend.
+Representa conceptualmente los reportes recibidos.
 
-Ejemplo conceptual:
+Ejemplo:
 
 ```json
 {
@@ -507,76 +1246,30 @@ Ejemplo conceptual:
   "monto": 50000,
   "telefono": "549XXXXXXXXXX",
   "comprobante": "archivo.jpg",
-  "fecha": "2026-08-06 15:30:00"
+  "fecha": "2026-08-17 15:30:00"
 }
 ```
 
 ## `verificados.json`
 
-Contiene el histórico de operaciones verificadas.
-
-Ejemplo conceptual:
+Representa conceptualmente las operaciones verificadas:
 
 ```json
 {
   "dni": "12345678",
   "monto": 50000,
   "verificado_por": "Admin",
-  "fecha_verificacion": "2026-08-06 15:45:00"
+  "fecha_verificacion": "2026-08-17 15:45:00"
 }
 ```
 
----
-
-# ⚠️ 11. Determinación de pendientes
-
-La arquitectura documentada **no utiliza un campo `estado` como fuente principal para determinar pendientes**.
-
-La relación administrativa es:
-
-```text
-reportes.json
-      │
-      │ comparación por DNI
-      ▼
-verificados.json
-```
-
-Esto es independiente del estado local utilizado por el frontend:
-
-```text
-localStorage
-└── reportes_fyd
-      └── estado = "✅ Enviado al servidor"
-```
-
-El estado local indica que el navegador logró enviar el reporte; la verificación administrativa se registra en `verificados.json`.
-
-Conceptualmente:
-
-```text
-PENDIENTES = REPORTES - VERIFICADOS
-```
-
-Por lo tanto:
-
-```text
-DNI en reportes.json
-        │
-        ├── existe en verificados.json → procesado
-        │
-        └── no existe                  → pendiente
-```
-
-> Esta lógica debe considerarse cuidadosamente si un mismo DNI puede realizar más de un pago o generar múltiples reportes. Comparar únicamente por DNI puede hacer que operaciones diferentes se consideren una sola operación.
+> Estos formatos corresponden a la arquitectura documentada y no fueron auditados directamente en el archivo frontend.
 
 ---
 
-# 📲 12. Telegram
+# 📲 34. Telegram administrativo
 
-Después de almacenar el reporte, el backend notifica al grupo administrativo mediante la **Telegram Bot API**.
-
-Conceptualmente:
+La arquitectura del backend contempla:
 
 ```text
 Frontend
@@ -584,42 +1277,36 @@ Frontend
    ▼
 autogest_back.php
    │
-   ▼
-reportes.json
+   ├── reportes.json
    │
    ▼
 Telegram Bot API
    │
    ▼
-Grupo de administradores
+Grupo administrativo
 ```
 
-El mensaje incluye los datos necesarios para identificar la operación.
-
-Ejemplo:
+El administrador puede recibir un reporte y ejecutar acciones como:
 
 ```text
-💳 NUEVO REPORTE DE PAGO
-──────────────────────────────────
-
-👤 Usuario : Usuario
-📌 DNI     : 12345678
-💰 Monto   : $50.000
-
-[ ✅ Verificar ]
-[ ❌ Rechazar  ]
+✅ Verificar
+❌ Rechazar
 ```
 
 ---
 
-# 🔐 13. Callbacks administrativos
+# 🔐 35. Callbacks administrativos
 
-Los botones utilizan callbacks asociados al DNI y teléfono del reporte.
-
-### Verificar
+La arquitectura documentada utiliza callbacks conceptuales como:
 
 ```text
 verificar:DNI:telefono
+```
+
+y:
+
+```text
+rechazar:DNI:telefono
 ```
 
 Ejemplo:
@@ -628,229 +1315,57 @@ Ejemplo:
 verificar:12345678:549XXXXXXXXXX
 ```
 
-### Rechazar
-
-```text
-rechazar:DNI:telefono
-```
-
-Ejemplo:
-
-```text
-rechazar:12345678:549XXXXXXXXXX
-```
-
-El bot utiliza estos datos para identificar la operación y ejecutar la acción correspondiente.
+> La implementación concreta de estos callbacks no está presente en el archivo frontend analizado.
 
 ---
 
-# ✅ 14. Verificación administrativa
+# 📊 36. Comandos administrativos
 
-El flujo es:
+La arquitectura del bot contempla:
 
-```text
-Administrador
-      │
-      │ Click "Verificar"
-      ▼
-Telegram
-      │
-      │ Callback Query
-      ▼
-Bot Python
-      │
-      ├── Busca reporte
-      ├── Comprueba verificación
-      ├── Registra operación
-      ▼
-verificados.json
-      │
-      ▼
-Actualiza mensaje de Telegram
-```
+| Comando        | Función                   |
+| -------------- | ------------------------- |
+| `/stats`       | Estadísticas generales    |
+| `/pendientes`  | Reportes pendientes       |
+| `/verificados` | Pagos verificados         |
+| `/suma`        | Suma de pagos verificados |
+| `/exportar`    | Exportación a CSV         |
+| `/ruta`        | Ubicación de archivos     |
 
-La operación verificada registra conceptualmente:
-
-```text
-DNI
-Monto
-Administrador
-Fecha de verificación
-```
-
-También puede generarse un enlace de contacto por WhatsApp.
+Estas funciones pertenecen al bot Python del VPS y no están implementadas dentro del frontend revisado.
 
 ---
 
-# ❌ 15. Rechazo
+# 🔐 37. Seguridad
 
-El administrador puede seleccionar:
+El frontend público no contiene el token del bot de Telegram.
 
-```text
-❌ Rechazar
-```
-
-El callback asociado es:
+La arquitectura mantiene:
 
 ```text
-rechazar:DNI:telefono
+GitHub Pages
+├── HTML
+├── CSS
+├── JavaScript
+├── deudas.csv
+├── entidades.csv
+└── descripcion.csv
 ```
 
-El bot procesa la operación y actualiza la información mostrada en Telegram.
+mientras que las operaciones administrativas permanecen en:
+
+```text
+VPS
+├── PHP
+├── JSON
+└── Python
+```
+
+El token de Telegram debe permanecer exclusivamente en el servidor.
 
 ---
 
-# 📊 16. Comandos administrativos
-
-El bot dispone de los siguientes comandos:
-
-| Comando | Función |
-|---|---|
-| `/stats` | Estadísticas generales |
-| `/pendientes` | Reportes todavía no verificados |
-| `/verificados` | Últimos pagos verificados |
-| `/suma` | Suma de pagos verificados |
-| `/exportar` | Exportación a CSV |
-| `/ruta` | Ubicación de archivos de datos |
-
----
-
-## `/stats`
-
-Muestra información general:
-
-```text
-📊 ESTADÍSTICAS
-──────────────────────────────────
-
-📋 Reportes:       125
-⏳ Pendientes:      12
-✅ Verificados:    108
-
-💰 Total reportado:   $X
-💰 Total verificado:  $Y
-```
-
----
-
-## `/pendientes`
-
-Muestra operaciones no verificadas:
-
-```text
-📋 PENDIENTES
-──────────────────────────────────
-
-👤 Usuario : Usuario
-📌 DNI     : 12345678
-💰 Monto   : $50.000
-```
-
----
-
-## `/verificados`
-
-Muestra verificaciones recientes:
-
-```text
-✅ VERIFICADOS
-──────────────────────────────────
-
-👤 Usuario : Usuario
-📌 DNI     : 12345678
-💰 Monto   : $50.000
-📅 Fecha   : 13/08/2026
-```
-
----
-
-## `/suma`
-
-Calcula el total de operaciones verificadas:
-
-```text
-💰 SUMA DE VERIFICADOS
-──────────────────────────────────
-
-Cantidad: 108
-Total:    $X
-```
-
----
-
-## `/exportar`
-
-Genera un CSV para procesamiento externo:
-
-```text
-reportes.json
-      │
-      ▼
- Bot Python
-      │
-      ▼
-    CSV
-      │
-      ▼
-Administrador
-```
-
----
-
-## `/ruta`
-
-Muestra las ubicaciones utilizadas para los archivos:
-
-```text
-📁 ARCHIVOS
-
-reportes:
-    /ruta/reportes.json
-
-verificados:
-    /ruta/verificados.json
-```
-
----
-
-# 🔒 17. Seguridad
-
-La arquitectura separa el frontend público de las funciones sensibles.
-
-## Token de Telegram
-
-El token del bot permanece exclusivamente en el VPS:
-
-```text
-❌ GitHub Pages
-❌ JavaScript público
-❌ deudas.csv
-
-✅ VPS
-```
-
-El navegador nunca debería recibir el token de Telegram.
-
-## Autorización administrativa
-
-Las operaciones administrativas están restringidas mediante:
-
-```text
-ADMIN_IDS
-```
-
-Conceptualmente:
-
-```python
-if user_id not in ADMIN_IDS:
-    reject_request()
-```
-
-Esto evita que usuarios externos ejecuten comandos administrativos.
-
----
-
-# 🧩 18. Separación de responsabilidades
+# 🧩 38. Separación de responsabilidades
 
 ## Frontend
 
@@ -859,22 +1374,31 @@ GitHub Pages
 ├── HTML
 ├── CSS
 ├── JavaScript
-└── deudas.csv
+├── deudas.csv
+├── entidades.csv
+└── descripcion.csv
 ```
 
 Responsabilidades:
 
-- interfaz pública;
-- carga del catálogo;
-- validación del DNI;
-- consulta de deudas;
-- agrupación por cartera;
-- cálculo del total;
-- visualización de métodos de pago;
-- reporte de pagos;
-- almacenamiento local temporal;
-- reintento de reportes;
-- exportación local de reportes.
+* interfaz pública;
+* carga de datos;
+* validación del DNI;
+* consulta de deudas;
+* agrupación por código;
+* agrupación por cartera;
+* cálculo de totales;
+* asociación cartera → entidad;
+* asociación producto → descripción;
+* vista rápida;
+* vista detallada;
+* métodos de pago;
+* formulario de reportes;
+* almacenamiento local;
+* reenvío de reportes;
+* exportación local;
+* contacto mediante WhatsApp;
+* contacto mediante Telegram.
 
 ---
 
@@ -887,12 +1411,12 @@ VPS
 
 Responsabilidades arquitectónicas:
 
-- recibir reportes;
-- validar datos;
-- almacenar información;
-- gestionar comprobantes;
-- comunicarse con Telegram;
-- mantener las credenciales privadas.
+* recibir reportes;
+* procesar datos;
+* gestionar comprobantes;
+* persistir reportes;
+* comunicarse con Telegram;
+* mantener credenciales privadas.
 
 ---
 
@@ -903,23 +1427,21 @@ VPS
 └── bot.py
 ```
 
-Responsabilidades:
+Responsabilidades arquitectónicas:
 
-- recibir callbacks de Telegram;
-- verificar reportes;
-- rechazar reportes;
-- consultar JSON;
-- calcular pendientes;
-- generar estadísticas;
-- calcular sumas;
-- exportar información;
-- ejecutar comandos administrativos.
+* recibir callbacks;
+* verificar reportes;
+* rechazar reportes;
+* consultar JSON;
+* calcular pendientes;
+* generar estadísticas;
+* calcular sumas;
+* exportar información;
+* ejecutar comandos administrativos.
 
 ---
 
-# 🗂️ 19. Estructura del proyecto
-
-Estructura conceptual:
+# 🗂️ 39. Estructura del proyecto
 
 ```text
 GitHub Repository
@@ -927,7 +1449,14 @@ GitHub Repository
 ├── index.html
 ├── styles.css
 ├── script.js
-└── deudas.csv
+│
+├── deudas.csv
+├── entidades.csv
+├── descripcion.csv
+│
+└── assets/
+    ├── 154860_b.png
+    └── 154500.png
 
 
 VPS
@@ -938,60 +1467,68 @@ VPS
 └── bot.py
 ```
 
-El frontend puede ejecutarse como sitio estático.
-
-El backend y el bot requieren el entorno del VPS.
-
 ---
 
-# 🔁 20. Flujo completo
+# 🔁 40. Flujo completo
 
 ```text
                                 USUARIO
                                    │
-                    ┌──────────────┴──────────────┐
-                    │                             │
-               Consulta DNI                  Reporta pago
-                    │                    DNI + monto + WhatsApp
-                    │                       + comprobante
-                    ▼                             │
-             GitHub Pages                         ▼
-                    │                        VPS / PHP
-                    ▼                             │
-              deudas.csv                         ▼
-                    │                      reportes.json
-                    │                             │
-                    │                             ▼
-                    │                       Telegram Bot API
-                    │                             │
-                    │                             ▼
-                    │                       Administradores
-                    │                             │
-                    │                       ┌─────┴─────┐
-                    │                       │           │
-                    │                   Verificar    Rechazar
-                    │                       │           │
-                    │                       └─────┬─────┘
-                    │                             │
-                    │                             ▼
-                    │                        Bot Python
-                    │                             │
-                    │                ┌────────────┼────────────┐
-                    │                │            │            │
-                    │                ▼            ▼            ▼
-                    │          verificados   Pendientes     Stats
-                    │             .json       calculados
-                    │                │
-                    │                ▼
-                    │          /verificados
-                    │
-                    ▼
-                 Resultado
+                                   ▼
+                              Ingresa DNI
+                                   │
+                                   ▼
+                            GitHub Pages
+                                   │
+                ┌──────────────────┼──────────────────┐
+                │                  │                  │
+                ▼                  ▼                  ▼
+          deudas.csv        entidades.csv      descripcion.csv
+                │                  │                  │
+                └──────────────────┼──────────────────┘
+                                   │
+                                   ▼
+                              JavaScript
+                                   │
+                     ┌─────────────┴─────────────┐
+                     │                           │
+                     ▼                           ▼
+              Vista rápida                Vista detallada
+                     │                           │
+                     │                           │
+                     └─────────────┬─────────────┘
+                                   │
+                    ┌──────────────┼──────────────┐
+                    │              │              │
+                    ▼              ▼              ▼
+              Mercado Pago      Banco       Reportar pago
+                                                  │
+                                                  ▼
+                                            localStorage
+                                                  │
+                                                  ▼
+                                          autogest_back.php
+                                                  │
+                                                  ▼
+                                           reportes.json
+                                                  │
+                                                  ▼
+                                            Telegram Bot
+                                                  │
+                                                  ▼
+                                          Administradores
+                                                  │
+                                           ┌──────┴──────┐
+                                           ▼             ▼
+                                      Verificar       Rechazar
+                                           │
+                                           ▼
+                                    verificados.json
 ```
 
 ---
 
-# 📐 21. Modelo de datos
+# 📐 41. Modelo de datos
 
 ```text
                     ┌─────────────────┐
@@ -1009,6 +1546,19 @@ El backend y el bot requieren el entorno del VPS.
                              │ consulta
                              ▼
                          FRONTEND
+                             │
+             ┌───────────────┴────────────────┐
+             │                                │
+             ▼                                ▼
+     entidades.csv                     descripcion.csv
+             │                                │
+             ▼                                ▼
+     Cartera → Entidad                Producto → Descripción
+             │                                │
+             └───────────────┬────────────────┘
+                             │
+                             ▼
+                    Resultado de consulta
                              │
                              │ reporte
                              ▼
@@ -1037,173 +1587,386 @@ El backend y el bot requieren el entorno del VPS.
 
 ---
 
-# 🛠️ 22. Stack tecnológico
+# 🛠️ 42. Stack tecnológico
 
-| Componente | Tecnología |
-|---|---|
-| Frontend | HTML / CSS / JavaScript |
-| Hosting frontend | GitHub Pages |
-| Datos públicos | CSV |
-| Backend | PHP |
-| Hosting backend | VPS |
-| Persistencia backend | JSON |
-| Persistencia local | Browser `localStorage` |
-| Bot | Python |
-| Administración | Telegram |
-| Comunicación | Telegram Bot API |
-| Exportación | CSV / JSON |
+| Componente                 | Tecnología              |
+| -------------------------- | ----------------------- |
+| Frontend                   | HTML / CSS / JavaScript |
+| Hosting frontend           | GitHub Pages            |
+| Catálogo de deudas         | CSV                     |
+| Catálogo de entidades      | CSV                     |
+| Catálogo de descripciones  | CSV                     |
+| Backend                    | PHP                     |
+| Hosting backend            | VPS                     |
+| Persistencia backend       | JSON                    |
+| Persistencia local         | Browser `localStorage`  |
+| Bot                        | Python                  |
+| Administración             | Telegram                |
+| Comunicación               | Telegram Bot API        |
+| Exportación local          | JSON                    |
+| Exportación administrativa | CSV                     |
 
 ---
 
-# ⚙️ 23. Detalles de implementación del frontend
+# ⚙️ 43. Detalles de implementación del frontend
 
-### Carga de datos
+## Inicialización
 
-Al iniciar el documento:
+Al cargarse el DOM:
 
-```text
+```javascript
 DOMContentLoaded
-      │
-      ├── cargarDatos()
-      └── verReportesGuardados()
 ```
 
-`cargarDatos()` realiza un `GET` de `deudas.csv`, convierte el contenido mediante `csvToJson()` y marca los datos como disponibles.
-
-### Fecha del catálogo
-
-El frontend intenta utilizar el header HTTP:
+se ejecutan:
 
 ```text
-Last-Modified
+cargarDatos()
+verReportesGuardados()
 ```
 
-Si no está disponible, utiliza:
+También se configura el comportamiento del campo DNI para permitir la consulta mediante:
 
 ```text
-localStorage.fecha_csv
+Enter
 ```
-
-y finalmente genera una fecha local como fallback.
-
-### Consulta
-
-La función `consultar()`:
-
-1. Valida el DNI.
-2. Comprueba que el CSV esté cargado.
-3. Busca coincidencias exactas por DNI.
-4. Agrupa por `Codigo`.
-5. Calcula el subtotal de cada código.
-6. Agrupa cada código por `Cartera`.
-7. Calcula el total general.
-8. Muestra el resumen por código.
-9. Ofrece los métodos de pago.
-10. Permite reportar el pago.
-
-### Pago
-
-La función `pagar()` recibe:
-
-```text
-metodo
- total
-```
-
-y reconstruye el desglose de códigos del DNI consultado para mostrarlo junto con los datos del método de pago.
-
-### Reporte
-
-La función `reportarPago()` crea dinámicamente el formulario y mantiene el DNI asociado a la consulta.
-
-La función `enviarReporte()`:
-
-- valida nombre y monto;
-- crea `FormData`;
-- valida el tamaño del comprobante;
-- guarda una copia local;
-- ejecuta el `POST` al VPS;
-- espera como máximo 60 segundos;
-- procesa la respuesta JSON;
-- limpia el formulario si el envío es correcto;
-- ofrece reintento sin comprobante si corresponde.
-
----
-# 🧪 24. Manejo de errores
-
-El frontend contempla:
-
-- CSV no disponible.
-- DNI inválido.
-- Datos todavía no cargados.
-- Archivo demasiado grande.
-- Respuesta HTTP no válida.
-- Respuesta del backend que no sea JSON.
-- Timeout de 60 segundos.
-- Error al enviar comprobante.
-- Reintento sin comprobante.
-- Reportes pendientes almacenados localmente.
-
-Si la respuesta del backend no puede interpretarse como JSON, el frontend considera que el servidor no respondió correctamente.
 
 ---
 
-# ⚠️ 25. Consideraciones técnicas
+## Conversión CSV
 
-## Comparación por DNI
+Todos los CSV se procesan mediante:
 
-La arquitectura actual utiliza el DNI como identificador principal para relacionar reportes y verificaciones.
-
-Esto funciona correctamente si:
-
-```text
-1 DNI = 1 operación relevante
+```javascript
+csvToJson()
 ```
 
-pero puede ser insuficiente si:
+La función:
+
+1. separa las líneas;
+2. obtiene los headers;
+3. procesa los valores;
+4. contempla valores entre comillas;
+5. construye objetos JavaScript.
+
+Resultado conceptual:
 
 ```text
-1 DNI → múltiples pagos
+CSV
+ │
+ ▼
+csvToJson()
+ │
+ ▼
+Array de objetos
 ```
 
-o:
+---
+
+## Carga de deudas
+
+```javascript
+fetch('deudas.csv')
+```
+
+genera:
+
+```javascript
+deudas = csvToJson(csvData)
+```
+
+y posteriormente:
+
+```javascript
+datosCargados = true
+```
+
+---
+
+## Carga de entidades
+
+```javascript
+fetch('entidades.csv')
+```
+
+genera:
+
+```javascript
+carteraEntidad
+```
+
+---
+
+## Carga de descripciones
+
+```javascript
+fetch('descripcion.csv')
+```
+
+genera:
+
+```javascript
+descripcionProducto
+```
+
+---
+
+# 🔎 44. Funciones principales
+
+| Función                        | Responsabilidad                |
+| ------------------------------ | ------------------------------ |
+| `cargarDatos()`                | Carga todos los CSV            |
+| `cargarEntidades()`            | Carga entidades                |
+| `cargarDescripciones()`        | Carga observaciones            |
+| `csvToJson()`                  | Convierte CSV a objetos        |
+| `consultar()`                  | Consulta y muestra resumen     |
+| `informame()`                  | Muestra detalle por producto   |
+| `pagar()`                      | Muestra datos de pago          |
+| `reportarPago()`               | Genera formulario              |
+| `enviarReporte()`              | Envía reporte al VPS           |
+| `guardarReporteLocal()`        | Guarda reporte en localStorage |
+| `actualizarReporteLocal()`     | Actualiza estado local         |
+| `reenviarReportesPendientes()` | Reenvía reportes               |
+| `verReportesGuardados()`       | Inspecciona reportes           |
+| `verEstadoReportes()`          | Muestra estados                |
+| `exportarReportes()`           | Exporta JSON                   |
+| `abrirWhatsApp()`              | Abre contacto WhatsApp         |
+| `abrirTelegram()`              | Abre contacto Telegram         |
+| `hablaConNosotros()`           | Menú de contacto               |
+
+---
+
+# 🧪 45. Validaciones actuales
+
+## DNI
 
 ```text
-1 DNI → múltiples reportes
+7 u 8 dígitos
 ```
 
-En una evolución futura sería preferible utilizar un identificador único de operación, por ejemplo:
+## Nombre
+
+El envío verifica que exista:
+
+```text
+nombre
+```
+
+## Monto
+
+El envío verifica que exista:
+
+```text
+monto
+```
+
+## Comprobante
+
+El frontend comprueba:
+
+```text
+máximo 5 MB
+```
+
+## WhatsApp
+
+La interfaz lo presenta como obligatorio, pero la función `enviarReporte()` no bloquea el envío cuando está vacío.
+
+Cuando no se proporciona, envía:
+
+```text
+No proporcionado
+```
+
+al backend.
+
+---
+
+# ⚠️ 46. Diferencias importantes respecto de versiones anteriores
+
+El frontend actual incorpora funcionalidades que no estaban reflejadas completamente en la documentación anterior:
+
+### Nuevos catálogos
+
+```text
+entidades.csv
+descripcion.csv
+```
+
+### Dos niveles de consulta
+
+```text
+Vista rápida
+   ↓
+por código
+
+Vista detallada
+   ↓
+por producto
+```
+
+### Descripciones
+
+Los productos pueden mostrar observaciones provenientes de:
+
+```text
+descripcion.csv
+```
+
+### Entidades
+
+Las carteras pueden mostrarse utilizando la entidad asociada desde:
+
+```text
+entidades.csv
+```
+
+### Comprobantes
+
+Actualmente se permite:
+
+```text
+Imagen
+PDF
+```
+
+no solamente imágenes.
+
+### Contacto
+
+El frontend incorpora:
+
+```text
+WhatsApp
+Telegram
+```
+
+como canales de atención.
+
+---
+
+# ⚠️ 47. Consideraciones técnicas
+
+## Identificación por DNI
+
+El frontend utiliza el DNI como identificador principal de la consulta:
+
+```text
+DNI
+ ↓
+deudas
+```
+
+Sin embargo, un DNI puede tener múltiples registros:
+
+```text
+1 DNI
+ ├── Código A
+ ├── Código B
+ └── Código C
+```
+
+Para los reportes administrativos, depender exclusivamente del DNI puede ser insuficiente si un mismo usuario realiza varios pagos.
+
+---
+
+# ⚠️ 48. Identificación de reportes
+
+Una evolución recomendable sería incorporar:
 
 ```text
 reporte_id
 ```
 
-y relacionar:
+Por ejemplo:
+
+```text
+REP-20260817-000123
+```
+
+La estructura podría pasar de:
+
+```text
+DNI
+ │
+ └── Reporte
+```
+
+a:
 
 ```text
 reporte_id
-    │
-    ├── reporte
-    └── verificación
+ │
+ ├── reporte
+ └── verificación
 ```
 
-Esto evitaría ambigüedades y permitiría conservar correctamente el historial de múltiples pagos del mismo DNI.
+Esto permitiría identificar inequívocamente cada operación.
 
 ---
 
-# 🚀 26. Posibles mejoras futuras
+# ⚠️ 49. Estado de reportes
 
-### Identificador único de reporte
+Actualmente existen dos conceptos diferentes:
 
 ```text
-REP-20260813-000123
+Estado local
 ```
 
-Permitiría identificar cada operación independientemente del DNI.
+y:
 
-### Estado explícito
+```text
+Estado administrativo
+```
 
-En lugar de inferir el estado exclusivamente mediante archivos:
+El estado local puede representar:
+
+```text
+Pendiente
+✅ Enviado al servidor
+```
+
+mientras que el estado administrativo podría representar:
+
+```text
+Pendiente
+Verificado
+Rechazado
+```
+
+No deben confundirse.
+
+Un reporte puede estar:
+
+```text
+✅ Enviado al servidor
+```
+
+pero continuar:
+
+```text
+⏳ Pendiente de verificación
+```
+
+---
+
+# 🚀 50. Mejoras futuras
+
+## ID único
+
+Implementar:
+
+```text
+reporte_id
+```
+
+para cada operación.
+
+---
+
+## Estado explícito
+
+Incorporar:
 
 ```text
 pendiente
@@ -1211,24 +1974,51 @@ verificado
 rechazado
 ```
 
-Esto permitiría mantener un historial más preciso.
+en el backend.
 
-### Base de datos
+---
 
-Si el volumen crece, podría migrarse:
+## Corrección del estado local
+
+Después de recibir:
+
+```javascript
+resultado.ok
+```
+
+el frontend debería actualizar el reporte correspondiente a:
+
+```text
+✅ Enviado al servidor
+```
+
+Esto evitaría que los reportes correctamente enviados vuelvan a aparecer como pendientes de reenvío.
+
+---
+
+## Base de datos
+
+Si el volumen aumenta:
 
 ```text
 JSON
   ↓
-SQLite / MySQL / PostgreSQL
+SQLite
+  ↓
+MySQL / PostgreSQL
 ```
 
-### API para consulta
+---
+
+## API
 
 Actualmente:
 
 ```text
-Frontend → deudas.csv
+Frontend
+    │
+    ▼
+CSV
 ```
 
 Una evolución posible:
@@ -1243,49 +2033,65 @@ API
 Base de datos
 ```
 
-### Auditoría
+---
 
-Agregar:
+## Auditoría
+
+Una estructura más completa podría incluir:
 
 ```text
 reporte_id
-admin_id
+dni
+monto
 fecha_creacion
+fecha_envio
 fecha_verificacion
 fecha_rechazo
+admin_id
 accion
 motivo
+comprobante
 ```
 
-permitiría reconstruir completamente la historia de cada operación.
+Esto permitiría reconstruir el historial completo de cada operación.
 
 ---
 
 # 🎯 Principios de diseño
 
-### Seguridad
+## Seguridad
 
-Las credenciales y operaciones administrativas permanecen en el VPS.
+Las credenciales y funciones administrativas permanecen en el VPS.
 
-### Simplicidad
+## Simplicidad
 
-El catálogo público utiliza un CSV estático que puede actualizarse fácilmente.
+El catálogo público utiliza CSV estáticos fáciles de reemplazar.
 
-### Separación de responsabilidades
+## Separación de responsabilidades
 
-El frontend público no tiene acceso al token de Telegram ni a las funciones administrativas.
+El frontend se ocupa de:
 
-### Tolerancia a fallos
+```text
+Consulta
+Visualización
+Reporte
+```
 
-Los reportes se conservan localmente para reducir el riesgo de pérdida ante fallos temporales de red o backend.
+mientras el VPS concentra:
 
-### Persistencia simple
+```text
+Persistencia
+Telegram
+Administración
+```
 
-Los archivos JSON permiten mantener una arquitectura sencilla mientras el volumen de datos sea manejable.
+## Tolerancia a fallos
 
-### Escalabilidad progresiva
+Los reportes se guardan localmente antes de intentar enviarlos al backend.
 
-La arquitectura permite evolucionar desde:
+## Arquitectura progresiva
+
+El sistema puede evolucionar desde:
 
 ```text
 CSV + JSON
@@ -1297,11 +2103,11 @@ hacia:
 API + Base de datos
 ```
 
-sin cambiar necesariamente la interfaz administrativa.
+sin necesidad de cambiar completamente la interfaz pública.
 
 ---
 
-# 📌 Comandos
+# 📌 Comandos administrativos
 
 ```text
 📌 COMANDOS
@@ -1327,9 +2133,12 @@ El sistema está dividido en tres capas:
 │                                     │
 │ GitHub Pages                        │
 │ HTML + CSS + JavaScript             │
-│ deudas.csv                          │
 │                                     │
-│ Consulta + Reporte                  │
+│ deudas.csv                          │
+│ entidades.csv                       │
+│ descripcion.csv                     │
+│                                     │
+│ Consulta + Pago + Reporte           │
 └──────────────────┬──────────────────┘
                    │
                    │ Reporte de pago
@@ -1346,11 +2155,11 @@ El sistema está dividido en tres capas:
                    │ Telegram Bot API
                    ▼
 ┌─────────────────────────────────────┐
-│          ADMINISTRADORES             │
+│          ADMINISTRADORES            │
 │                                     │
 │ ✅ Verificar                        │
 │ ❌ Rechazar                         │
-│ 📊 Estadísticas                    │
+│ 📊 Estadísticas                     │
 │ 📋 Pendientes                       │
 │ 📤 Exportaciones                    │
 └─────────────────────────────────────┘
@@ -1360,32 +2169,42 @@ El sistema está dividido en tres capas:
 
 ```text
 deudas.csv
-    │
-    ▼
-GitHub Pages
-    │
-    ├── Consulta DNI
-    │
-    └── Reporte de pago
-            │
+     │
+     ├──────────────┐
+     │              │
+entidades.csv   descripcion.csv
+     │              │
+     └──────┬───────┘
             ▼
-        autogest_back.php
+       GitHub Pages
             │
-            ├── reportes.json
+            ├── Consulta DNI
             │
-            └── Telegram
+            ├── Vista rápida
+            │
+            ├── Vista detallada
+            │
+            ├── Métodos de pago
+            │
+            └── Reporte de pago
+                    │
+                    ├── localStorage
                     │
                     ▼
-                bot.py
+             autogest_back.php
                     │
-                    ├── Verificar
-                    ├── Rechazar
-                    ├── Pendientes
-                    ├── Estadísticas
-                    ├── Sumas
-                    └── Exportar
+                    ├── reportes.json
+                    │
+                    └── Telegram
+                           │
+                           ▼
+                        bot.py
+                           │
+                    ┌──────┴──────┐
+                    │             │
+                Verificar      Rechazar
+                    │
+                    ▼
+             verificados.json
 ```
 
-El frontend se encarga de la **consulta y recepción de reportes**, mientras que el VPS concentra la **persistencia, comunicación con Telegram y administración**.
-
-La arquitectura actual es simple y funcional, pero el siguiente salto técnico importante sería incorporar un **ID único por operación** para dejar de depender exclusivamente del DNI como identificador de reportes y verificaciones.
