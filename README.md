@@ -2208,3 +2208,149 @@ entidades.csv   descripcion.csv
              verificados.json
 ```
 
+
+## 🤖 Bot de Administración — Telegram
+
+El sistema incorpora un **bot privado de administración mediante Telegram**, encargado de gestionar y verificar los reportes de pagos recibidos desde la plataforma web.
+
+El bot funciona sobre el VPS y se comunica con los archivos y endpoints del backend para mantener sincronizados los reportes pendientes y los pagos verificados.
+
+### 🔄 Flujo de administración
+
+```text
+Reporte enviado desde la web
+          │
+          ▼
+      reportes.json
+          │
+          ▼
+   Bot de Telegram
+          │
+     ┌────┴────┐
+     ▼         ▼
+ Verificar   Rechazar
+     │         │
+     ▼         ▼
+verificados  notificación
+   .json      al grupo
+```
+
+Los reportes pendientes pueden enviarse al **grupo privado de administradores**, donde cada operación incluye botones para **Verificar** o **Rechazar** el pago.
+
+### 🔐 Control de acceso
+
+El bot restringe las operaciones administrativas mediante una lista de IDs autorizados (`ADMIN_IDS`). Los usuarios que no estén autorizados reciben un mensaje de acceso denegado.
+
+También existe un grupo específico de administradores (`GRUPO_ADMIN_ID`) utilizado para centralizar los reportes pendientes, verificaciones y rechazos.
+
+### 📋 Comandos
+
+| Comando        | Función                                           |
+| -------------- | ------------------------------------------------- |
+| `/start`       | Muestra el menú de administración                 |
+| `/stats`       | Muestra estadísticas generales                    |
+| `/pendientes`  | Envía los reportes pendientes al grupo            |
+| `/verificados` | Lista los pagos verificados                       |
+| `/suma`        | Calcula el monto total verificado                 |
+| `/exportar`    | Genera un CSV con los reportes y su estado        |
+| `/ruta`        | Muestra las rutas y estado de los archivos        |
+| `/id`          | Obtiene el ID del usuario o grupo                 |
+| `/idgrupo`     | Obtiene el ID de un grupo                         |
+| `/testgrupo`   | Comprueba la conexión con el grupo administrativo |
+| `/limpiar`     | Permite limpiar los datos con doble confirmación  |
+
+Los comandos administrativos están protegidos mediante autorización por ID.
+
+### 📊 Estadísticas
+
+`/stats` permite consultar:
+
+* Cantidad de casos cargados desde `deudas.csv`
+* Cantidad total de reportes
+* Pagos verificados
+* Pagos pendientes
+* Monto total reportado
+* Monto total verificado
+
+### ✅ Verificación de pagos
+
+Cada reporte pendiente contiene:
+
+* Usuario
+* DNI
+* Monto
+* ID de operación
+* Fecha
+* WhatsApp
+
+El administrador puede seleccionar **✅ Verificar** o **❌ Rechazar** directamente desde Telegram.
+
+Al verificar un pago, el bot comprueba nuevamente que el reporte exista y que todavía no haya sido verificado antes de guardarlo en el backend.
+
+La confirmación también se comunica al grupo administrativo, incluyendo quién realizó la verificación.
+
+### 📤 Exportación
+
+El comando `/exportar` genera un archivo CSV con:
+
+```text
+Fecha
+DNI
+Nombre
+Monto
+WhatsApp
+Operacion
+Estado
+```
+
+El estado se determina automáticamente como `verificado` o `pendiente`.
+
+### 🧹 Limpieza administrativa
+
+El comando `/limpiar` incorpora una **doble confirmación** antes de eliminar los datos de `reportes.json` y `verificados.json`, evitando una eliminación accidental.
+
+### ⚙️ Características técnicas
+
+* Python
+* `pyTelegramBotAPI`
+* API HTTP mediante `requests`
+* Persistencia mediante JSON en el VPS
+* Exportación CSV
+* Sistema de caché de 60 segundos
+* Intervalo mínimo entre peticiones
+* Identificación única de operaciones mediante hash MD5
+* Botones interactivos de Telegram
+* Control de acceso mediante IDs
+* Comunicación con el backend PHP
+* Polling permanente con recuperación ante errores
+
+El bot mantiene una caché local para reportes, verificaciones y pendientes, reduciendo consultas innecesarias al backend.
+
+### 📁 Archivos y endpoints utilizados
+
+```text
+deudas.csv
+    │
+    └── Datos de las deudas
+
+reportes.json
+    │
+    └── Reportes recibidos desde la web
+
+verificados.json
+    │
+    └── Pagos aprobados por administración
+
+guardar_verificado.php
+    │
+    └── Endpoint utilizado para registrar verificaciones
+```
+
+El bot obtiene `reportes.json` y `verificados.json` desde el VPS y utiliza `guardar_verificado.php` para persistir las verificaciones.
+
+### 🖥️ Ejecución
+
+El proceso permanece ejecutándose mediante `bot.polling()` y, ante una excepción, espera unos segundos antes de volver a iniciar el polling.
+
+
+
