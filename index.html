@@ -6,7 +6,6 @@
     <title>Autogestion FYD ONLINE</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        /* ---------- Overlay de carga ---------- */
         #loadingOverlay {
             position: fixed;
             top: 0;
@@ -40,7 +39,6 @@
             animation: spin 0.8s linear infinite;
         }
 
-        /* ---------- Estilos del panel Informame ---------- */
         .informame-panel {
             display: none;
             position: fixed;
@@ -181,7 +179,6 @@
             font-family: 'Lucida Console', 'Courier New', monospace;
         }
 
-        /* Botón Informame en resultados */
         .btn-informame-result {
             background: #AB3434 !important;
             border-color: #AB3434 !important;
@@ -217,11 +214,7 @@
 </head>
 <body>
 
-    <!-- ============================================ -->
-    <!-- OVERLAY DE CARGA - Aparece desde el principio -->
-    <!-- ============================================ -->
     <div id="loadingOverlay">
-        <!-- Logo o icono -->
         <div style="
             width: 80px;
             height: 80px;
@@ -233,10 +226,9 @@
             margin-bottom: 30px;
             box-shadow: 0 0 40px rgba(123, 97, 255, 0.3);
         ">
-            <span style="font-size: 40px;">💰</span>
+            <span style="font-size: 40px;">🤖</span>
         </div>
         
-        <!-- Título -->
         <h1 style="
             color: #e8eaf0;
             font-size: 24px;
@@ -251,7 +243,6 @@
             margin-bottom: 30px;
         ">Cargando tu información...</p>
         
-        <!-- Barra de progreso -->
         <div class="progress-container" style="
             width: 280px;
             max-width: 80%;
@@ -270,14 +261,12 @@
             "></div>
         </div>
         
-        <!-- Estado -->
         <div id="loadingStatus" style="
             color: #4a5270;
             font-size: 12px;
             letter-spacing: 0.5px;
         ">Inicializando...</div>
         
-        <!-- Spinner de respaldo -->
         <div class="spinner" style="margin-top: 20px;"></div>
     </div>
 
