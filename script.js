@@ -1055,10 +1055,9 @@ function pagar(metodo, total) {
             <div class="datos-pago">
                 <p><b>CBU:</b> <code>0070024520000004194671</code></p>
                 <p><b>Alias:</b> <code>FideicomisoRDA</code></p>
-                <p><b>Banco:</b> BANCO GALICIA</p>
-                <p><b>Nombre:</b> RECUPERO DE ACTIVOS FIDEICOMISO FINANCIERO</p>
-                <p><b>CUIT:</b> 33-71573296-9</p>
-                <p><b>Titular:</b> FYD ONLINE SA</p>
+                <p><b>Banco:</b> <code>BANCO GALICIA</code></p>
+                <p><b>Titular:</b> <code>RECUPERO DE ACTIVOS FIDEICOMISO FINANCIERO</code></p>
+                <p><b>CUIT:</b> <code>33-71573296-9</code></p>
             </div>
             <p class="monto-exacto">💰 Total a pagar: $${totalFormateado}</p>
             <div style="display:flex; flex-direction:column; gap:8px;">
