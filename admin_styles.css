@@ -1,0 +1,678 @@
+:root {
+    --violet: #4f46e5;
+    --violet-soft: #818cf8;
+    --violet-neon: #4338ca;
+    --green: #27A17C;
+    --red: #9b1c2e;
+    --gold: #ffb530;
+    --line: rgba(160, 68, 255, .48);
+    --panel: rgba(6, 2, 13, .91);
+    --ui-scale: .9;
+}
+
+.btn-primary {
+    background: var(--violet);
+    color: #fff;
+}
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 20px rgba(79, 70, 229, 0.4);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    min-height: 100vh;
+    margin: 0;
+    color: #fff;
+    font: 14px/1.3 "Lucida Console", Monaco, monospace;
+    background: #020105;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+}
+
+.container {
+    max-width: 1600px;
+    width: 100%;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
+.panel-principal {
+    position: relative;
+    width: 100%;
+    padding: 18px 22px 18px 22px;
+    background: linear-gradient(135deg, rgba(18, 6, 31, .95), var(--panel));
+    border: 2px solid var(--violet);
+    border-radius: 12px;
+    box-shadow: 0 0 16px rgba(160, 68, 255, .85), 0 0 48px rgba(160, 68, 255, .2), inset 0 0 30px rgba(160, 68, 255, .08);
+    transition: all 0.3s ease;
+}
+
+.panel-inner {
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ============================================
+   LOGIN
+============================================ */
+#loginScreen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    padding: 20px;
+}
+
+#loginScreen .logo {
+    font-size: 60px;
+    margin-bottom: 10px;
+}
+#loginScreen h1 {
+    color: #fff;
+    font-size: 28px;
+    margin-bottom: 5px;
+}
+#loginScreen .subtitle {
+    color: #a8b2d4;
+    font-size: 14px;
+    margin-bottom: 30px;
+}
+
+#loginForm {
+    width: 100%;
+    max-width: 350px;
+}
+#loginForm .form-group {
+    margin-bottom: 15px;
+}
+#loginForm label {
+    display: block;
+    color: #a8b2d4;
+    font-size: 13px;
+    margin-bottom: 5px;
+}
+#loginForm input {
+    width: 100%;
+    padding: 12px 16px;
+    background: rgba(0, 0, 0, .6);
+    border: 2px solid var(--violet);
+    border-radius: 10px;
+    color: #fff;
+    font: 15px "Lucida Console", Monaco, monospace;
+    outline: none;
+    transition: all .3s;
+    text-align: center;
+    letter-spacing: 2px;
+}
+#loginForm input:focus {
+    border-color: var(--violet-soft);
+    box-shadow: 0 0 0 3px rgba(160, 68, 255, .2);
+    background: rgba(0, 0, 0, .7);
+}
+#loginForm input::placeholder {
+    color: #4a5270;
+}
+#loginForm .btn-login {
+    width: 100%;
+    padding: 12px;
+    background: var(--violet);
+    border: none;
+    color: #fff;
+    font: 15px "Lucida Console", Monaco, monospace;
+    cursor: pointer;
+    border-radius: 10px;
+    transition: all .2s;
+    font-weight: 600;
+}
+#loginForm .btn-login:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(160, 68, 255, .3);
+}
+#loginForm .btn-login:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+#loginError {
+    color: var(--red);
+    font-size: 14px;
+    margin-top: 10px;
+    display: none;
+    text-align: center;
+}
+#loginLoading {
+    color: var(--violet-soft);
+    font-size: 14px;
+    margin-top: 10px;
+    display: none;
+    text-align: center;
+}
+
+/* ============================================
+   HEADER - APP
+============================================ */
+#appScreen {
+    display: none;
+}
+
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.app-header .left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.app-header .left .logo-small {
+    font-size: 26px;
+}
+.app-header .left h1 {
+    color: #fff;
+    font-size: 18px;
+}
+.app-header .left .badge {
+    background: var(--violet);
+    color: white;
+    padding: 1px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+}
+.app-header .right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.app-header .right .admin-name {
+    color: #a8b2d4;
+    font-size: 13px;
+}
+.app-header .right .btn-logout {
+    background: rgba(255, 255, 255, 0.05);
+    color: #a8b2d4;
+    border: 1px solid var(--line);
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: "Lucida Console", Monaco, monospace;
+    font-size: 12px;
+    transition: all 0.3s;
+}
+.app-header .right .btn-logout:hover {
+    background: rgba(255, 117, 111, 0.1);
+    border-color: var(--red);
+    color: var(--red);
+}
+.app-header .right .status {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: #4a5270;
+}
+.app-header .right .status .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.app-header .right .status .dot.online {
+    background: var(--green);
+}
+.app-header .right .status .dot.offline {
+    background: var(--red);
+}
+.app-header .right .refresh-btn {
+    background: none;
+    border: none;
+    color: var(--violet-soft);
+    font-size: 18px;
+    cursor: pointer;
+    transition: transform 0.3s;
+}
+.app-header .right .refresh-btn:hover {
+    transform: rotate(180deg);
+}
+
+/* ============================================
+   ESTADÍSTICAS - FILA SUPERIOR
+============================================ */
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.stat-card {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(160, 68, 255, 0.08);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+.stat-card:hover {
+    border-color: var(--violet-soft);
+    background: rgba(79, 70, 229, 0.1);
+}
+.stat-card .stat-label {
+    color: #4a5270;
+    font-size: 11px;
+}
+.stat-card .stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+}
+.stat-card .stat-value.blue { color: var(--violet-soft); }
+.stat-card .stat-value.green { color: var(--green); }
+.stat-card .stat-value.red { color: var(--red); }
+.stat-card .stat-value.gold { color: var(--gold); }
+.stat-card .stat-sub {
+    font-size: 10px;
+    color: #4a5270;
+    margin-top: 2px;
+}
+
+/* ============================================
+   LISTA DE REPORTES
+============================================ */
+.lista-reportes {
+    background: rgba(26, 31, 51, 0.6);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    backdrop-filter: blur(4px);
+}
+
+.lista-header {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.3);
+}
+.lista-header h3 {
+    color: var(--violet-soft);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 600;
+}
+.lista-header .filtros {
+    display: flex;
+    gap: 6px;
+}
+.lista-header .filtros button {
+    background: rgba(160, 68, 255, 0.1);
+    border: 1px solid transparent;
+    color: #a8b2d4;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 10px;
+    cursor: pointer;
+    font-family: "Lucida Console", Monaco, monospace;
+    transition: all 0.3s;
+}
+.lista-header .filtros button:hover {
+    border-color: var(--violet-soft);
+    color: #fff;
+}
+.lista-header .filtros button.active {
+    background: var(--violet);
+    color: #fff;
+    border-color: var(--violet);
+}
+
+.lista-body {
+    padding: 10px;
+    max-height: 480px;
+    overflow-y: auto;
+}
+.lista-body::-webkit-scrollbar {
+    width: 4px;
+}
+.lista-body::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 2px;
+}
+.lista-body::-webkit-scrollbar-thumb {
+    background: var(--violet);
+    border-radius: 2px;
+}
+
+/* ============================================
+   TARJETAS DE REPORTES
+============================================ */
+.report-card {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    border-left: 3px solid var(--violet);
+    transition: all 0.2s;
+    font-size: 13px;
+}
+.report-card:hover {
+    transform: translateX(3px);
+    border-color: var(--violet-soft);
+    background: rgba(0, 0, 0, 0.5);
+}
+.report-card.verified {
+    border-left-color: var(--green);
+    opacity: 0.85;
+}
+.report-card.rejected {
+    border-left-color: var(--red);
+    opacity: 0.85;
+}
+
+.report-card .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2px;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.report-card .label {
+    color: #4a5270;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.report-card .value {
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+}
+.report-card .value.monto { color: var(--gold); }
+.report-card .value.monto-verde { color: var(--green); }
+.report-card .value.id {
+    font-size: 10px;
+    color: #4a5270;
+    font-weight: 300;
+}
+
+.report-card .whatsapp-link {
+    display: inline-block;
+    margin-left: 6px;
+    text-decoration: none;
+    vertical-align: middle;
+    transition: transform 0.2s;
+}
+.report-card .whatsapp-link:hover { transform: scale(1.15); }
+.report-card .whatsapp-link img {
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+    vertical-align: middle;
+    border-radius: 3px;
+    filter: invert(1);
+}
+
+.report-card .actions {
+    margin-top: 6px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 4px 12px;
+    border: none;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: "Lucida Console", Monaco, monospace;
+    transition: all 0.2s;
+}
+.btn-success {
+    background: var(--green);
+    color: #fff;
+}
+.btn-success:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(39, 161, 124, 0.4);
+}
+.btn-danger {
+    background: var(--red);
+    color: #fff;
+}
+.btn-danger:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(155, 28, 46, 0.4);
+}
+.btn-sm {
+    padding: 3px 10px;
+    font-size: 10px;
+}
+
+.estado-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+.estado-badge.pendiente {
+    background: rgba(255, 181, 48, 0.2);
+    color: var(--gold);
+}
+.estado-badge.verificado {
+    background: rgba(39, 161, 124, 0.2);
+    color: var(--green);
+}
+.estado-badge.rechazado {
+    background: rgba(155, 28, 46, 0.2);
+    color: var(--red);
+}
+
+/* ============================================
+   EMPTY STATE
+============================================ */
+.empty-state {
+    text-align: center;
+    padding: 30px 15px;
+    color: #4a5270;
+}
+.empty-state .icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+}
+.empty-state p {
+    font-size: 13px;
+}
+
+/* ============================================
+   LOADER
+============================================ */
+.loader {
+    text-align: center;
+    padding: 25px;
+    color: #4a5270;
+    font-size: 13px;
+}
+.loader::after {
+    content: '';
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--line);
+    border-top: 2px solid var(--violet);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ============================================
+   TOAST
+============================================ */
+.toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.toast {
+    background: rgba(15, 12, 28, 0.95);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    animation: slideIn 0.3s ease;
+    max-width: 320px;
+    font-size: 13px;
+    backdrop-filter: blur(10px);
+}
+.toast.success { border-left: 4px solid var(--green); }
+.toast.error { border-left: 4px solid var(--red); }
+.toast.info { border-left: 4px solid var(--violet); }
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+/* ============================================
+   MODAL PARA COMPROBANTE
+============================================ */
+.modal-comprobante {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 99999;
+    padding: 20px;
+    backdrop-filter: blur(10px);
+}
+.modal-comprobante.active { display: flex; animation: fadeInModal 0.3s ease; }
+@keyframes fadeInModal {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+.modal-comprobante .modal-content {
+    max-width: 90%;
+    max-height: 90%;
+    border-radius: 12px;
+    border: 2px solid var(--violet);
+    box-shadow: 0 0 60px rgba(160, 68, 255, 0.3);
+    background: #151928;
+    padding: 16px;
+    position: relative;
+}
+.modal-comprobante .modal-content img {
+    max-width: 100%;
+    max-height: 80vh;
+    border-radius: 8px;
+    display: block;
+}
+.modal-comprobante .modal-close {
+    position: absolute;
+    top: -12px;
+    right: -12px;
+    width: 34px;
+    height: 34px;
+    background: var(--red);
+    border: none;
+    border-radius: 50%;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    font-family: "Lucida Console", Monaco, monospace;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.modal-comprobante .modal-close:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 20px rgba(155, 28, 46, 0.4);
+}
+.modal-comprobante .modal-info {
+    color: #a8b2d4;
+    font-size: 11px;
+    text-align: center;
+    padding: 6px 0 0 0;
+    border-top: 1px solid var(--line);
+    margin-top: 8px;
+}
+
+/* ============================================
+   RESPONSIVE
+============================================ */
+@media (max-width: 900px) {
+    .stats-row {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+@media (max-width: 600px) {
+    .stats-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .app-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    .app-header .right {
+        justify-content: space-between;
+        flex-wrap: wrap;
+    }
+    .panel-principal {
+        padding: 12px;
+    }
+    .lista-body {
+        max-height: 350px;
+    }
+    .report-card .row {
+        flex-wrap: wrap;
+    }
+}
+@media (max-width: 400px) {
+    .stats-row {
+        grid-template-columns: 1fr 1fr;
+    }
+    .lista-header .filtros {
+        flex-wrap: wrap;
+    }
+}
