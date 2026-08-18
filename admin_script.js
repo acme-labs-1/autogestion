@@ -216,9 +216,6 @@ function filtrar(filtro) {
     renderizarLista();
 }
 
-// ============================================
-// RENDERIZAR LISTA
-// ============================================
 function renderizarLista() {
     const container = document.getElementById('listaReportes');
     let reportesFiltrados = [];
@@ -311,11 +308,24 @@ function renderizarLista() {
                     <span class="label">📅 Estado</span>
                     <span class="value"><span class="estado-badge ${estadoClass}">${estadoLabel}</span></span>
                 </div>
+                ${(r.estado === 'verificado' && r.verificado_por) ? `
+                    <div class="row">
+                        <span class="label">👤 Verificado por</span>
+                        <span class="value" style="color:var(--violet-soft);font-size:12px;">${r.verificado_por}</span>
+                    </div>
+                ` : ''}
+                ${(r.estado === 'rechazado' && r.rechazado_por) ? `
+                    <div class="row">
+                        <span class="label">👤 Rechazado por</span>
+                        <span class="value" style="color:var(--red);font-size:12px;">${r.rechazado_por}</span>
+                    </div>
+                ` : ''}
                 ${actions}
             </div>
         `;
     }).join('');
 }
+
 
 // ============================================
 // ACCIONES: VERIFICAR / RECHAZAR
@@ -451,3 +461,7 @@ document.addEventListener('keydown', (e) => {
         logout();
     }
 });
+
+
+
+
