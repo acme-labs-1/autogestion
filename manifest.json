@@ -1,0 +1,27 @@
+{
+  "name": "Panel FYD",
+  "short_name": "FYD Panel",
+  "description": "Panel de administración de pagos FYD",
+  "start_url": "/panel.html",
+  "display": "standalone",
+  "background_color": "#020105",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
