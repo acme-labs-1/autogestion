@@ -947,7 +947,7 @@ function informame() {
         
         <div style="margin-top:15px;display:flex;gap:8px;flex-wrap:wrap;">
             <button class="btn-pago" onclick="consultar()" style="flex:1;background:#7b61ff;border-color:#7b61ff;color:white;min-width:120px;">
-                🔙 Volver al resumen
+                📜 Volver al resumen
             </button>
             <button class="btn-pago btn-reportar" onclick="reportarPago()" style="flex:1;min-width:120px;">
                 📢 Reportar pago
