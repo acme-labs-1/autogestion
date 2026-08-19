@@ -788,33 +788,30 @@ function consultar() {
             html += `</div>`;
         });
 
-        html += `
-            <div class="total" style="margin-top:12px;padding:12px;background:#1a1f35;border-radius:8px;border:2px solid #7b61ff;text-align:center;">
-                💰 <span style="color:#48bb78;font-size:20px;font-weight:bold;">$${totalGeneral.toLocaleString('es-AR')}</span>
-            </div>
-            
-            <div class="botones-pago" style="margin-top:12px;">
-                <button class="btn-pago btn-informame" onclick="informame()" style="background:#AB3434;border-color:#AB3434;color:white;flex:1;">
-                    📋 Ver detalle
-                </button>
-                <button class="btn-pago btn-mp" onclick="pagar('mp', ${totalGeneral})" style="flex:1;">
-                    💳 Mercado Pago
-                </button>
-                <button class="btn-pago btn-transferencia" onclick="pagar('transferencia', ${totalGeneral})" style="flex:1;">
-                    🏦 Banco
-                </button>
-            </div>
-            <div style="text-align:center;margin-top:8px;">
-                <button class="btn-pago btn-reportar" onclick="reportarPago()" style="width:100%;padding:10px;">
-                    📢 ¿Ya pagaste? Reporta tu pago
-                </button>
-            </div>
-            <div style="margin-top:8px;">
-                <button class="btn-pago" onclick="hablaConNosotros()" style="width:100%;background:#9b1c2e;border-color:#9b1c2e;color:white;padding:12px;font-size:16px;">
-                    💬 Habla con nosotros
-                </button>
-            </div>
-        `;
+html += `
+    <div class="total" style="margin-top:12px;padding:12px;background:#1a1f35;border-radius:8px;border:2px solid #7b61ff;text-align:center;">
+        💰 <span style="color:#48bb78;font-size:20px;font-weight:bold;">$${totalGeneral.toLocaleString('es-AR')}</span>
+    </div>
+    
+    <div class="botones-pago" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn-pago" onclick="informame()" style="background:#AB3434;color:white;flex:1;min-width:120px;border-radius:12px;padding:14px;">
+            📋 Ver detalle
+        </button>
+        <button class="btn-pago btn-pagar-mp" onclick="pagar('transferencia', ${totalGeneral})" style="flex:2;min-width:160px;font-weight:700;font-size:16px;">
+            💳 Pagar
+        </button>
+    </div>
+    <div style="text-align:center;margin-top:8px;">
+        <button class="btn-pago btn-reportar" onclick="reportarPago()" style="width:100%;padding:12px;border-radius:12px;">
+            📢 ¿Ya pagaste? Reporta tu pago
+        </button>
+    </div>
+    <div style="margin-top:8px;">
+        <button class="btn-pago" onclick="hablaConNosotros()" style="width:100%;background:#9b1c2e;color:white;padding:12px;font-size:16px;border-radius:12px;">
+            💬 Habla con nosotros
+        </button>
+    </div>
+`;
 
         resultado.innerHTML = html;
         resultado.style.display = 'block';
