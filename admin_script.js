@@ -475,7 +475,7 @@ function limpiarDatos(tipo) {
     const emoji = tipo === 'verificados' ? '✅' : '❌';
     
     // Primera confirmación
-    if (!confirm(`🚨⚠️ ¿ESTÁS SEGURO? ⚠️🚨\n\nEsta acción ELIMINARÁ PERMANENTEMENTE todos los registros de ${nombreTipo}.\n\n${emoji} Se eliminarán ${tipo === 'verificados' ? verificadosCache.length : rechazadosCache.length} registros.\n\n📌 Se creará un backup automático.\n\n¿Deseas continuar?`)) {
+    if (!confirm(`🚨⚠️ ¿ESTÁS SEGURO? ⚠️🚨\nEsta acción ELIMINARÁ PERMANENTEMENTE todos los registros de ${nombreTipo}.\n${emoji} Se eliminarán ${tipo === 'verificados' ? verificadosCache.length : rechazadosCache.length} registros.\n\n📌 Se creará un backup automático.\n\n¿Deseas continuar?`)) {
         return;
     }
     
@@ -492,8 +492,8 @@ function mostrarModalConfirmacion(tipo) {
     modal.className = 'modal-confirm active';
     modal.innerHTML = `
         <div class="modal-confirm-content">
-            <div class="icon-danger">🚨❌🚨</div>
-            <h2>⚠️ ¡ADVERTENCIA EXTREMA! ⚠️</h2>
+            <div class="icon-danger">❌</div>
+            <h2>⚠️ ¡ADVERTENCIA! ⚠️</h2>
             <p>
                 <strong>Estás a punto de ELIMINAR PERMANENTEMENTE todos los registros de <span style="color:#ff3333;">${nombreTipo}</span></strong>
             </p>
@@ -511,7 +511,7 @@ function mostrarModalConfirmacion(tipo) {
                     ❌ Cancelar
                 </button>
                 <button class="btn-confirm-clean" onclick="ejecutarLimpieza('${tipo}', this.closest('.modal-confirm'))">
-                    🚨 Confirmar Eliminación 🚨
+                    🚨 Confirmar 🚨
                 </button>
             </div>
         </div>
@@ -579,7 +579,7 @@ async function ejecutarLimpieza(tipo, modalElement) {
             mostrarToast('❌ Error al limpiar: ' + (result.error || 'Error desconocido'), 'error');
             // Reactivar botón
             btn.disabled = false;
-            btn.textContent = '🚨 Confirmar Eliminación 🚨';
+            btn.textContent = '🚨 Confirmar 🚨';
         }
     } catch (error) {
         console.error('Error en ejecutarLimpieza:', error);
@@ -589,7 +589,7 @@ async function ejecutarLimpieza(tipo, modalElement) {
         const btn = modalElement?.querySelector('.btn-confirm-clean');
         if (btn) {
             btn.disabled = false;
-            btn.textContent = '🚨 Confirmar Eliminación 🚨';
+            btn.textContent = '🚨 Confirmar 🚨';
         }
     }
 }
@@ -615,5 +615,4 @@ document.addEventListener('keydown', function(e) {
         });
     }
 });
-
 
