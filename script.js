@@ -794,10 +794,10 @@ html += `
     </div>
     
     <div class="botones-pago" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn-pago" onclick="informame()" style="background:#AB3434;color:white;flex:1;min-width:120px;border-radius:12px;padding:14px;">
+        <button class="btn-pago" onclick="informame()" style="background:#AB3434;color:white;flex:1;min-width:120px;border-radius:12px;padding:14px;font-weight:600;font-size:16px;">
             📋 Ver detalle
         </button>
-        <button class="btn-pago btn-pagar-mp" onclick="pagar('transferencia', ${totalGeneral})" style="flex:2;min-width:160px;font-weight:700;font-size:16px;">
+        <button class="btn-pago btn-pagar-mp" onclick="pagar('transferencia', ${totalGeneral})" style="flex:1;min-width:120px;font-weight:700;font-size:16px;padding:14px;border-radius:12px;">
             💳 Pagar
         </button>
     </div>
@@ -812,6 +812,7 @@ html += `
         </button>
     </div>
 `;
+
 
         resultado.innerHTML = html;
         resultado.style.display = 'block';
