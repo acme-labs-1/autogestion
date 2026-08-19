@@ -27,9 +27,7 @@ body {
     border: 1px solid #2a2f4a;
 }
 
-/* ============================================
-   HEADER
-============================================ */
+/* HEADER */
 header {
     text-align: center;
     margin-bottom: 30px;
@@ -61,9 +59,7 @@ h1 {
     font-family: 'Lucida Console', 'Courier New', monospace;
 }
 
-/* ============================================
-   CONSULTA
-============================================ */
+/* CONSULTA */
 .consulta-section {
     margin-bottom: 20px;
 }
@@ -137,9 +133,7 @@ button:active {
     font-family: 'Lucida Console', 'Courier New', monospace;
 }
 
-/* ============================================
-   BOTON DE AYUDA
-============================================ */
+/* AYUDA */
 .help-button {
     margin-top: 10px;
     background: transparent;
@@ -160,9 +154,6 @@ button:active {
     background: rgba(123, 97, 255, 0.1);
 }
 
-/* ============================================
-   PANEL DE AYUDA
-============================================ */
 .help-panel {
     display: none;
     margin-top: 15px;
@@ -182,17 +173,14 @@ button:active {
 .help-panel::-webkit-scrollbar {
     width: 6px;
 }
-
 .help-panel::-webkit-scrollbar-track {
     background: #151928;
     border-radius: 3px;
 }
-
 .help-panel::-webkit-scrollbar-thumb {
     background: #4a5270;
     border-radius: 3px;
 }
-
 .help-panel::-webkit-scrollbar-thumb:hover {
     background: #7b61ff;
 }
@@ -202,7 +190,6 @@ button:active {
     padding-bottom: 15px;
     border-bottom: 1px solid #2a2f4a;
 }
-
 .help-item:last-child {
     border-bottom: none;
     margin-bottom: 0;
@@ -228,7 +215,6 @@ button:active {
     transition: transform 0.3s;
     font-size: 12px;
 }
-
 .help-question .arrow.open {
     transform: rotate(180deg);
 }
@@ -241,7 +227,6 @@ button:active {
     padding: 8px 0 0 10px;
     border-left: 2px solid #2a2f4a;
 }
-
 .help-answer.open {
     display: block;
 }
@@ -268,17 +253,13 @@ button:active {
     cursor: pointer;
     transition: all 0.3s;
 }
-
 .help-close:hover {
     background: #3a3f5a;
     color: #e8eaf0;
 }
 
-/* ============================================
-   RESULTADO - ANCHO AUMENTADO A 900px
-============================================ */
+/* RESULTADO */
 .resultado {
-    /* max-width: 900px; */
     max-width: 100%;
     margin-top: 20px;
     padding: 20px;
@@ -310,29 +291,6 @@ button:active {
     font-family: 'Lucida Console', 'Courier New', monospace;
 }
 
-.deuda-item {
-    display: flex;
-    justify-content: space-between;
-    padding: 10px 0;
-    border-bottom: 1px solid #2a2f4a;
-}
-
-.deuda-item:last-child {
-    border-bottom: none;
-}
-
-.entidad {
-    font-weight: 500;
-    color: #a8b2d4;
-    font-family: 'Lucida Console', 'Courier New', monospace;
-}
-
-.monto {
-    font-weight: 600;
-    color: #7b61ff;
-    font-family: 'Lucida Console', 'Courier New', monospace;
-}
-
 .total {
     text-align: center;
     padding: 15px 0 10px 0;
@@ -343,33 +301,17 @@ button:active {
     margin-top: 10px;
     font-family: 'Lucida Console', 'Courier New', monospace;
 }
-
 .total span {
     color: #7b61ff;
 }
 
-/* ============================================
-   BOTONES DE PAGO
-============================================ */
+/* BOTONES DE PAGO */
 .botones-pago {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
     margin-top: 15px;
     justify-content: center;
-}
-
-.botones-pago .btn-pago {
-    flex: 1;
-    min-width: 120px;
-    padding: 10px 16px;
-    border: none;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-family: 'Lucida Console', 'Courier New', monospace;
-    text-align: center;
 }
 
 .btn-pago {
@@ -395,38 +337,29 @@ button:active {
     box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
 }
 
-.btn-mp {
-    background: linear-gradient(135deg, #f50057, #c51162);
+/* BOTON PAGAR - COLOR #4049FD */
+.btn-pagar-mp {
+    background: #4049FD !important;
+    border: none !important;
+    color: white !important;
+    box-shadow: 0 4px 15px rgba(64, 73, 253, 0.4) !important;
 }
 
-.btn-mp:hover {
-    box-shadow: 0 5px 20px rgba(245, 0, 87, 0.4);
+.btn-pagar-mp:hover {
+    background: #3039d4 !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 25px rgba(64, 73, 253, 0.6) !important;
 }
 
-.btn-transferencia {
-    background: linear-gradient(135deg, #2056FD, #4845FD);
-}
-
-.btn-transferencia:hover {
-    box-shadow: 0 5px 20px rgba(32, 86, 253, 0.4);
+.btn-pagar-mp:active {
+    transform: translateY(0) !important;
 }
 
 .btn-reportar {
     background: linear-gradient(135deg, #00b894, #00856a);
 }
-
 .btn-reportar:hover {
     box-shadow: 0 5px 20px rgba(0, 184, 148, 0.4);
-}
-
-.btn-cancelar {
-    background: #2a2f4a;
-    color: #8892a8;
-}
-
-.btn-cancelar:hover {
-    background: #3a3f5a;
-    transform: translateY(-2px);
 }
 
 .btn-cancelar-pago {
@@ -442,32 +375,26 @@ button:active {
     transition: all 0.3s;
     font-family: 'Lucida Console', 'Courier New', monospace;
 }
-
 .btn-cancelar-pago:hover {
     background: #3a3f5a;
     transform: translateY(-2px);
 }
 
-/* ============================================
-   NO ENCONTRADO
-============================================ */
+/* NO ENCONTRADO */
 .no-encontrado {
     text-align: center;
     padding: 20px 0;
 }
-
 .no-encontrado .icono {
     font-size: 48px;
     margin-bottom: 10px;
 }
-
 .no-encontrado .mensaje {
     color: #e8eaf0;
     font-size: 18px;
     font-weight: 600;
     font-family: 'Lucida Console', 'Courier New', monospace;
 }
-
 .no-encontrado .detalle {
     color: #8892a8;
     font-size: 14px;
@@ -475,9 +402,7 @@ button:active {
     font-family: 'Lucida Console', 'Courier New', monospace;
 }
 
-/* ============================================
-   DATOS DE PAGO
-============================================ */
+/* DATOS DE PAGO */
 .datos-pago {
     background: #1f253d;
     padding: 15px;
@@ -485,14 +410,12 @@ button:active {
     margin: 15px 0;
     border: 1px solid #2a2f4a;
 }
-
 .datos-pago p {
     margin: 8px 0;
     font-size: 14px;
     color: #a8b2d4;
     font-family: 'Lucida Console', 'Courier New', monospace;
 }
-
 .datos-pago code {
     background: #151928;
     padding: 2px 8px;
@@ -512,13 +435,10 @@ button:active {
     font-family: 'Lucida Console', 'Courier New', monospace;
 }
 
-/* ============================================
-   FORMULARIO DE REPORTE
-============================================ */
+/* FORMULARIO REPORTE */
 .form-group {
     margin: 15px 0;
 }
-
 .form-group label {
     display: block;
     font-weight: 600;
@@ -527,7 +447,6 @@ button:active {
     color: #a8b2d4;
     font-family: 'Lucida Console', 'Courier New', monospace;
 }
-
 .form-group input {
     width: 100%;
     padding: 10px 14px;
@@ -540,12 +459,10 @@ button:active {
     color: #e8eaf0;
     font-family: 'Lucida Console', 'Courier New', monospace;
 }
-
 .form-group input:read-only {
     background: #151928;
     color: #8892a8;
 }
-
 .form-group input[type="file"] {
     padding: 10px;
     border: 2px dashed #2a2f4a;
@@ -554,11 +471,9 @@ button:active {
     text-align: center;
     color: #8892a8;
 }
-
 .form-group input[type="file"]:hover {
     border-color: #7b61ff;
 }
-
 .form-group small {
     color: #4a5270;
     font-size: 12px;
@@ -576,9 +491,7 @@ button:active {
     border: 1px solid #2a2f4a;
 }
 
-/* ============================================
-   ERROR Y ESTADOS
-============================================ */
+/* ERROR */
 .error-carga {
     background: #2a1a1a;
     color: #fc8181;
@@ -598,9 +511,7 @@ button:active {
     font-family: 'Lucida Console', 'Courier New', monospace;
 }
 
-/* ============================================
-   FOOTER
-============================================ */
+/* FOOTER */
 footer {
     margin-top: 30px;
     text-align: center;
@@ -608,86 +519,34 @@ footer {
     font-size: 12px;
     font-family: 'Lucida Console', 'Courier New', monospace;
 }
-
 footer p {
     margin: 3px 0;
 }
-
 .footer-small {
     font-size: 11px;
 }
 
-/* ============================================
-   RESPONSIVE
-============================================ */
+/* RESPONSIVE */
 @media (max-width: 480px) {
     .container {
         padding: 20px;
     }
-
     h1 {
         font-size: 20px;
     }
-
     input {
         font-size: 16px;
         padding: 12px;
     }
-
     button {
         font-size: 16px;
         padding: 12px;
     }
-
     .datos-pago code {
         font-size: 12px;
     }
-
     .help-panel {
         max-height: 300px;
     }
 }
 
-/* Estilos para el resumen de códigos */
-.codigo-container {
-    background: #1a1f35;
-    padding: 10px 12px;
-    border-radius: 8px;
-    margin: 10px 0;
-    border-left: 3px solid #7b61ff;
-}
-
-.codigo-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-}
-
-.codigo-total {
-    color: #48bb78;
-    font-weight: bold;
-    font-size: 14px;
-}
-
-.codigo-subtotal {
-    color: #7b61ff;
-    font-weight: bold;
-    font-size: 14px;
-}
-
-.resumen-codigos {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 5px;
-    justify-content: center;
-}
-
-.tag-codigo {
-    background: #1a1f35;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 12px;
-    border: 1px solid #3a2f4d;
-}
