@@ -31,24 +31,34 @@
                     </form>
                 </div>
 
-                <!-- APP -->
-                <div id="appScreen">
-                    <div class="app-header">
-                        <div class="left">
-                            <span class="logo-small">🔒</span>
-                            <h1>Panel FYD</h1>
-                            <span class="badge">Admin</span>
-                        </div>
-                        <div class="right">
-                            <span class="admin-name" id="adminName">👤 Administrador</span>
-                            <span class="status">
-                                <span class="dot online" id="statusDot"></span>
-                                <span id="statusText">Conectado</span>
-                            </span>
-                            <button class="refresh-btn" onclick="cargarDatos()" title="Actualizar">🔄</button>
-                            <button class="btn-logout" onclick="logout()">Salir</button>
-                        </div>
-                    </div>
+<!-- APP -->
+<div id="appScreen">
+    <div class="app-header">
+        <div class="left">
+            <span class="logo-small">💰</span>
+            <h1>Panel FYD</h1>
+            <span class="badge">Admin</span>
+        </div>
+        <div class="right">
+            <div class="header-top">
+                <span class="admin-name" id="adminName">👤 Administrador</span>
+                <span class="status">
+                    <span class="dot online" id="statusDot"></span>
+                    <span id="statusText">Conectado</span>
+                </span>
+            </div>
+            <div class="header-actions">
+                <button onclick="limpiarDatos('verificados')" class="btn-clean" title="Limpiar verificados">
+                    🧹
+                </button>
+                <button onclick="limpiarDatos('rechazados')" class="btn-clean" title="Limpiar rechazados">
+                    🧹
+                </button>
+                <button class="refresh-btn" onclick="cargarDatos()" title="Actualizar">🔄</button>
+                <button class="btn-logout" onclick="logout()">Salir</button>
+            </div>
+        </div>
+    </div>
 
                     <!-- Estadísticas -->
                     <div class="stats-row" id="statsRow">
