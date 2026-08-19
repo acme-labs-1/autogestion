@@ -569,7 +569,7 @@ function abrirWhatsApp() {
     const dni = resultado.dataset.dni || document.getElementById('dniInput').value.trim();
     const nombre = resultado.querySelector('.deudor')?.textContent?.replace('👤', '').trim() || 'Cliente';
     const mensaje = `Hola, soy ${nombre} (DNI: ${dni}). Necesito ayuda con mi deuda.`;
-    const url = `https://wa.me/5491123456789?text=${encodeURIComponent(mensaje)}`;
+    const url = `https://wa.me/5491171547679?text=${encodeURIComponent(mensaje)}`;
     
     resultado.innerHTML = `
         <div style="text-align:center;padding:20px;">
@@ -601,7 +601,7 @@ function abrirTelegram() {
     const dni = resultado.dataset.dni || document.getElementById('dniInput').value.trim();
     const nombre = resultado.querySelector('.deudor')?.textContent?.replace('👤', '').trim() || 'Cliente';
     const mensaje = `Hola, soy ${nombre} (DNI: ${dni}). Necesito ayuda con mi deuda.`;
-    const url = `https://t.me/fydonline?start=${dni}&text=${encodeURIComponent(mensaje)}`;
+    const url = `https://t.me/jgauna?start=${dni}&text=${encodeURIComponent(mensaje)}`;
     
     resultado.innerHTML = `
         <div style="text-align:center;padding:20px;">
