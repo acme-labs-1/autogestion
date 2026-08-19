@@ -7,6 +7,7 @@ const URL_VERIFICADOS = 'https://carover0.xyz/api/verificados.json';
 const URL_RECHAZADOS = 'https://carover0.xyz/api/rechazados.json';
 const URL_GUARDAR = 'https://carover0.xyz/api/guardar_verificado.php';
 const URL_GUARDAR_RECHAZADO = 'https://carover0.xyz/api/guardar_rechazado.php';
+const URL_LIMPIAR = 'https://carover0.xyz/api/limpiar_datos.php';
 
 // ============================================
 // ESTADO
@@ -463,5 +464,156 @@ document.addEventListener('keydown', (e) => {
 });
 
 
+
+// ============================================
+// BORRAR DATOS
+// ============================================
+
+
+function limpiarDatos(tipo) {
+    const nombreTipo = tipo === 'verificados' ? 'Verificados' : 'Rechazados';
+    const emoji = tipo === 'verificados' ? '✅' : '❌';
+    
+    // Primera confirmación
+    if (!confirm(`🚨⚠️ ¿ESTÁS SEGURO? ⚠️🚨\n\nEsta acción ELIMINARÁ PERMANENTEMENTE todos los registros de ${nombreTipo}.\n\n${emoji} Se eliminarán ${tipo === 'verificados' ? verificadosCache.length : rechazadosCache.length} registros.\n\n📌 Se creará un backup automático.\n\n¿Deseas continuar?`)) {
+        return;
+    }
+    
+    // Segunda confirmación con modal personalizado
+    mostrarModalConfirmacion(tipo);
+}
+
+function mostrarModalConfirmacion(tipo) {
+    const nombreTipo = tipo === 'verificados' ? 'Verificados' : 'Rechazados';
+    const emoji = tipo === 'verificados' ? '✅' : '❌';
+    const cantidad = tipo === 'verificados' ? verificadosCache.length : rechazadosCache.length;
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal-confirm active';
+    modal.innerHTML = `
+        <div class="modal-confirm-content">
+            <div class="icon-danger">🚨❌🚨</div>
+            <h2>⚠️ ¡ADVERTENCIA EXTREMA! ⚠️</h2>
+            <p>
+                <strong>Estás a punto de ELIMINAR PERMANENTEMENTE todos los registros de <span style="color:#ff3333;">${nombreTipo}</span></strong>
+            </p>
+            <p class="warning-text">
+                ${emoji} ${cantidad} registros serán eliminados
+            </p>
+            <p style="font-size: 0.9rem; color: var(--text-muted);">
+                📌 Se creará un backup automático antes de la eliminación
+            </p>
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.5rem;">
+                🔒 Esta acción NO se puede deshacer manualmente
+            </p>
+            <div class="modal-confirm-buttons">
+                <button class="btn-cancel-clean" onclick="this.closest('.modal-confirm').remove()">
+                    ❌ Cancelar
+                </button>
+                <button class="btn-confirm-clean" onclick="ejecutarLimpieza('${tipo}', this.closest('.modal-confirm'))">
+                    🚨 Confirmar Eliminación 🚨
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden';
+}
+
+async function ejecutarLimpieza(tipo, modalElement) {
+    if (!modalElement) return;
+    
+    try {
+        // Deshabilitar botón
+        const btn = modalElement.querySelector('.btn-confirm-clean');
+        if (!btn) {
+            mostrarToast('Error: No se encontró el botón de confirmación', 'error');
+            return;
+        }
+        
+        btn.disabled = true;
+        btn.textContent = '⏳ Procesando...';
+        
+        // Verificar que URL_LIMPIAR existe
+        if (typeof URL_LIMPIAR === 'undefined') {
+            throw new Error('URL_LIMPIAR no está definida. Agrega la constante en la configuración.');
+        }
+        
+        const response = await fetch(URL_LIMPIAR, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ archivo: tipo })
+        });
+        
+        // Verificar respuesta HTTP
+        if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            mostrarToast(`🧹 ${tipo === 'verificados' ? 'Verificados' : 'Rechazados'} limpiados correctamente. Backup: ${result.backup || 'creado'}`, 'success');
+            
+            // Actualizar cache
+            if (tipo === 'verificados') {
+                verificadosCache = [];
+            } else {
+                rechazadosCache = [];
+            }
+            
+            // Actualizar todosLosReportes
+            todosLosReportes = [...reportesCache, ...verificadosCache, ...rechazadosCache];
+            
+            // Renderizar nuevamente
+            renderizarEstadisticas();
+            renderizarLista();
+            
+            // Cerrar modal
+            if (modalElement) {
+                modalElement.remove();
+                document.body.style.overflow = 'auto';
+            }
+        } else {
+            mostrarToast('❌ Error al limpiar: ' + (result.error || 'Error desconocido'), 'error');
+            // Reactivar botón
+            btn.disabled = false;
+            btn.textContent = '🚨 Confirmar Eliminación 🚨';
+        }
+    } catch (error) {
+        console.error('Error en ejecutarLimpieza:', error);
+        mostrarToast('❌ Error: ' + error.message, 'error');
+        
+        // Reactivar botón si existe
+        const btn = modalElement?.querySelector('.btn-confirm-clean');
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '🚨 Confirmar Eliminación 🚨';
+        }
+    }
+}
+
+// Cerrar modal al hacer clic fuera
+document.addEventListener('click', function(e) {
+    const modals = document.querySelectorAll('.modal-confirm.active');
+    modals.forEach(modal => {
+        if (e.target === modal) {
+            modal.remove();
+            document.body.style.overflow = 'auto';
+        }
+    });
+});
+
+// Cerrar con Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const modals = document.querySelectorAll('.modal-confirm.active');
+        modals.forEach(modal => {
+            modal.remove();
+            document.body.style.overflow = 'auto';
+        });
+    }
+});
 
 
