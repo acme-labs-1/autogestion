@@ -11,8 +11,6 @@ La arquitectura separa la operación pública de la administración interna:
 * **JSON** → persistencia de reportes y verificaciones.
 * **localStorage** → almacenamiento local de reportes realizados desde el navegador.
 
-> **Nota:** este README está actualizado a partir del código frontend revisado. La implementación de `autogest_back.php`, `bot.py`, `reportes.json` y `verificados.json` no forma parte del archivo analizado, por lo que las funciones internas del backend se documentan únicamente como arquitectura prevista.
-
 ---
 
 # 🏗️ Arquitectura
